@@ -1,0 +1,13 @@
+{
+  "folders": [
+    {
+      "path": ".",
+    },
+    {
+      "path": "../proxi-ui",
+    },
+    {
+      "path": "../proxi",
+    },
+  ],
+}

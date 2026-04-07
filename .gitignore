@@ -1,0 +1,41 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# turbo
+.turbo
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# env
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# editors
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+
+# build output
+dist
+coverage
+
+# Next.js
+.next
+out
+
+# Nest / ts build
+apps/api/dist
+packages/*/dist
+
+# test artifacts
+playwright-report
+test-results
