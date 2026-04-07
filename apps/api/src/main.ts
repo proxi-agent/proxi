@@ -14,6 +14,7 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3002
   await app.listen(port)
+  // eslint-disable-next-line no-console
   console.log(`Backend server is running on http://localhost:${port}`)
 }
 
