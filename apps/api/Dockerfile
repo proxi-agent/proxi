@@ -17,7 +17,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 RUN corepack enable && corepack prepare pnpm@10.33.0 --activate
 
-COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 COPY --from=builder /app/packages/types ./packages/types
