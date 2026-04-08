@@ -1,21 +1,21 @@
 import type { Metadata } from 'next'
-import Layout from '../components/Layout'
+import type { ReactNode } from 'react'
+import { AuthProvider } from '@/lib/auth/auth-context'
 import '../styles/globals.css'
 
 export const metadata: Metadata = {
-  description:
-    'Stock transfer agent workspace for case intake, ledger operations, reconciliation, and reporting.',
+  description: 'Role-based issuer, agent, and shareholder portals.',
   title: {
-    default: 'Proxi Transfer Console',
-    template: '%s | Proxi Transfer Console',
+    default: 'Proxi Portals',
+    template: '%s | Proxi Portals',
   },
 }
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang='en'>
       <body>
-        <Layout>{children}</Layout>
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   )

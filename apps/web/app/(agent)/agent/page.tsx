@@ -1,0 +1,8 @@
+export default function AgentDashboardPage() {
+  return (
+    <section className='rounded-xl border border-slate-200 bg-white p-6'>
+      <h2 className='text-xl font-semibold text-slate-900'>Agent dashboard</h2>
+      <p className='mt-2 text-sm text-slate-600'>Monitor intake queue, pending reviews, and ledger posting activity.</p>
+    </section>
+  )
+}
