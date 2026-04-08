@@ -21,7 +21,7 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: proxi-api
-  ECS_CLUSTER: proxi-cluster
+  ECS_CLUSTER: default
   ECS_SERVICE: proxi-api-service
   ECS_TASK_DEFINITION: apps/api/task-definition.json
   CONTAINER_NAME: api
