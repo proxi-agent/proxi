@@ -1,15 +1,25 @@
-import Link from 'next/link'
+import { auth, clerkClient } from '@clerk/nextjs/server'
+import { redirect } from 'next/navigation'
 
-export default function LandingPage() {
-  return (
-    <main className='mx-auto max-w-3xl px-6 py-16'>
-      <h1 className='text-3xl font-semibold text-slate-900'>Proxi Transfer Portals</h1>
-      <p className='mt-3 text-slate-600'>Access shareholder, issuer, and agent workflows from a single role-based app.</p>
-      <div className='mt-6 flex gap-3'>
-        <Link className='rounded-md bg-blue-700 px-4 py-2 text-white' href='/login'>
-          Sign in
-        </Link>
-      </div>
-    </main>
-  )
+import { defaultPortalPathForRole, isRole, type Role } from '@/lib/auth/rbac'
+
+async function resolveRole(userId: string): Promise<Role> {
+  try {
+    const client = await clerkClient()
+    const user = await client.users.getUser(userId)
+    const metadataRole = user.publicMetadata?.['role'] ?? user.unsafeMetadata?.['role']
+    return isRole(metadataRole) ? metadataRole : 'shareholder'
+  } catch {
+    return 'shareholder'
+  }
+}
+
+export default async function LandingPage() {
+  const { userId } = await auth()
+  if (!userId) {
+    redirect('/login')
+  }
+
+  const role = await resolveRole(userId)
+  redirect(defaultPortalPathForRole(role))
 }
