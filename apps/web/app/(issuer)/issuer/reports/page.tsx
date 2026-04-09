@@ -1,8 +1,8 @@
 'use client'
 
 import EndpointPreview from '@/components/endpoint-preview'
-import { can } from '@/lib/auth/rbac'
 import { useAuth } from '@/lib/auth/auth-context'
+import { can } from '@/lib/auth/rbac'
 
 export default function IssuerReportsPage() {
   const { user } = useAuth()

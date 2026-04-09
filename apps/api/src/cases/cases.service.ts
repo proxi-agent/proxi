@@ -1,13 +1,14 @@
-import { Injectable, NotFoundException } from '@nestjs/common'
 import type { OnModuleInit } from '@nestjs/common'
+import { Injectable, NotFoundException } from '@nestjs/common'
+
 import { DatabaseService } from '../database/database.service.js'
 import { LedgerService } from '../ledger/ledger.service.js'
-import { RulesService } from '../rules/rules.service.js'
 import type { RestrictionCheck, RestrictionContext } from '../rules/rules.service.js'
+import { RulesService } from '../rules/rules.service.js'
 
-export type CaseType = 'TRANSFER' | 'ISSUE' | 'CANCEL'
-export type CaseStatus = 'PENDING' | 'COMPLETED' | 'FAILED'
-export type CaseLifecycleStage = 'REQUESTED' | 'EVIDENCE_PENDING' | 'RESTRICTIONS_REVIEW' | 'APPROVED' | 'COMPLETED' | 'REJECTED' | 'FAILED'
+export type CaseLifecycleStage = 'APPROVED' | 'COMPLETED' | 'EVIDENCE_PENDING' | 'FAILED' | 'REJECTED' | 'REQUESTED' | 'RESTRICTIONS_REVIEW'
+export type CaseStatus = 'COMPLETED' | 'FAILED' | 'PENDING'
+export type CaseType = 'CANCEL' | 'ISSUE' | 'TRANSFER'
 
 export interface CreateCaseInput {
   evidenceDocs?: string[]
@@ -170,7 +171,16 @@ export class CasesService implements OnModuleInit {
   }
 
   private async seedDummyCases() {
-    const holders = ['ALPHA_CAPITAL', 'AURORA_FUND', 'BANYAN_TRUST', 'CEDAR_BANK', 'DELTA_VENTURES', 'EVEREST_PARTNERS', 'GARNET_HOLDINGS', 'HARBOR_INVEST']
+    const holders = [
+      'ALPHA_CAPITAL',
+      'AURORA_FUND',
+      'BANYAN_TRUST',
+      'CEDAR_BANK',
+      'DELTA_VENTURES',
+      'EVEREST_PARTNERS',
+      'GARNET_HOLDINGS',
+      'HARBOR_INVEST',
+    ]
     const securities = ['PROXI-CLASS-A', 'PROXI-CLASS-B', 'PROXI-GROWTH', 'PROXI-INCOME', 'PROXI-LP-2026']
     const types: CaseType[] = ['TRANSFER', 'ISSUE', 'CANCEL']
 
@@ -181,7 +191,8 @@ export class CasesService implements OnModuleInit {
       const createdAt = new Date(Date.now() - index * 4 * 60 * 60 * 1000)
       const status: CaseStatus = index % 11 === 0 ? 'FAILED' : index % 5 === 0 ? 'PENDING' : 'COMPLETED'
       const evidenceRequired = this.getRequiredEvidence(type)
-      const evidenceSubmitted = status === 'PENDING' ? evidenceRequired.slice(0, Math.max(1, evidenceRequired.length - 2)) : evidenceRequired
+      const evidenceSubmitted =
+        status === 'PENDING' ? evidenceRequired.slice(0, Math.max(1, evidenceRequired.length - 2)) : evidenceRequired
       const missingEvidence = evidenceRequired.filter(item => !evidenceSubmitted.includes(item))
 
       await this.database.query(
@@ -205,7 +216,11 @@ export class CasesService implements OnModuleInit {
           status === 'FAILED' && type === 'TRANSFER' ? ['Lock-up restriction check'] : [],
           JSON.stringify([]),
           JSON.stringify({}),
-          status === 'FAILED' ? (type === 'TRANSFER' ? 'Restriction checks failed: Lock-up restriction check' : 'Ledger execution failed.') : null,
+          status === 'FAILED'
+            ? type === 'TRANSFER'
+              ? 'Restriction checks failed: Lock-up restriction check'
+              : 'Ledger execution failed.'
+            : null,
           createdAt,
           createdAt,
         ],

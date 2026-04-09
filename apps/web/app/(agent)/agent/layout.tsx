@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+
 import AppShell from '@/components/app-shell'
 import AuthGuard from '@/components/auth-guard'
 import RolePageDataPanel from '@/components/role-page-data-panel'

@@ -1,6 +1,7 @@
-import { ForbiddenException, Injectable } from '@nestjs/common'
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
+import { ForbiddenException, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+
 import type { AuthenticatedRequest } from './authenticated-request.js'
 import { PERMISSIONS_KEY } from './permissions.decorator.js'
 import type { Permission } from './rbac.js'

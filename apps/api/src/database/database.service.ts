@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common'
-import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common'
-import type { QueryResult, QueryResultRow } from 'pg'
-import { Pool } from 'pg'
 import { existsSync, readFileSync } from 'node:fs'
 import { inspect } from 'node:util'
+
+import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common'
+import { Injectable } from '@nestjs/common'
+import type { QueryResult, QueryResultRow } from 'pg'
+import { Pool } from 'pg'
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
@@ -12,9 +13,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   constructor() {
     const connectionString = process.env.DATABASE_URL
     if (!connectionString) {
-      throw new Error(
-        'DATABASE_URL is not set. Set it to your RDS connection string before starting the API.',
-      )
+      throw new Error('DATABASE_URL is not set. Set it to your RDS connection string before starting the API.')
     }
     const sslCaPath = process.env.DB_SSL_CA_PATH
     const isAwsRds = connectionString?.includes('rds.amazonaws.com')

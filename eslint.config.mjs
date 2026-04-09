@@ -1,8 +1,9 @@
 import js from '@eslint/js'
 import { defineConfig, globalIgnores } from 'eslint/config'
-import tseslint from 'typescript-eslint'
-import nextPlugin from '@next/eslint-plugin-next'
 import eslintConfigPrettier from 'eslint-config-prettier'
+import nextPlugin from '@next/eslint-plugin-next'
+import simpleImportSort from 'eslint-plugin-simple-import-sort'
+import tseslint from 'typescript-eslint'
 
 export default defineConfig([
   globalIgnores(['**/node_modules/**', '**/.next/**', '**/dist/**', '**/.turbo/**', '**/coverage/**']),
@@ -13,8 +14,25 @@ export default defineConfig([
 
   {
     files: ['**/*.{js,mjs,cjs,ts,mts,cts,tsx,jsx}'],
+    plugins: {
+      'simple-import-sort': simpleImportSort,
+    },
     rules: {
       'no-console': 'warn',
+      'simple-import-sort/exports': 'error',
+      'simple-import-sort/imports': [
+        'error',
+        {
+          groups: [
+            ['^\\u0000'],
+            ['^node:'],
+            ['^@?\\w'],
+            ['^@/'],
+            ['^\\.\\.(?!/?$)', '^\\.\\./?$'],
+            ['^\\./(?=.*/)(?!/?$)', '^\\.(?!/?$)', '^\\./?$'],
+          ],
+        },
+      ],
     },
   },
 

@@ -2,8 +2,9 @@
 
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
+
 import { useAuth } from '@/lib/auth/auth-context'
-import { defaultPortalPathForRole, ROLE_LABELS, ROLES, type Role } from '@/lib/auth/rbac'
+import { defaultPortalPathForRole, type Role, ROLE_LABELS, ROLES } from '@/lib/auth/rbac'
 
 export default function RoleSwitcher() {
   const router = useRouter()

@@ -1,7 +1,16 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common'
+
 import { Permissions } from '../auth/permissions.decorator.js'
+
+import type {
+  AuditTrailEntry,
+  ExceptionItem,
+  HolderProfile,
+  PortalMockResponse,
+  ReconciliationBreak,
+  ReportsSummary,
+} from './operations.service.js'
 import { OperationsService } from './operations.service.js'
-import type { AuditTrailEntry, ExceptionItem, HolderProfile, PortalMockResponse, ReconciliationBreak, ReportsSummary } from './operations.service.js'
 
 @Controller('operations')
 export class OperationsController {

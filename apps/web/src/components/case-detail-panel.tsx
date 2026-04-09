@@ -1,9 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+
+import ValueBadge from '@/components/value-badge'
 import { apiGet, apiPost } from '@/lib/api-client'
 import type { CaseRecord } from '@/types/cases'
-import ValueBadge from '@/components/value-badge'
 
 type PanelMode = 'documents' | 'review' | 'status' | 'summary'
 

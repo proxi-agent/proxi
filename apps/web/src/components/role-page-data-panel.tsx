@@ -1,7 +1,8 @@
 'use client'
 
-import { useMemo } from 'react'
 import { usePathname } from 'next/navigation'
+import { useMemo } from 'react'
+
 import EndpointPreview from '@/components/endpoint-preview'
 import { getEndpointsForPath } from '@/lib/page-endpoints'
 

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+
 import { DatabaseService } from '../database/database.service.js'
 
 export type LedgerEventType = 'ISSUE' | 'TRANSFER' | 'CANCEL'

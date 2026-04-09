@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { apiGet } from '@/lib/api-client'
+
 import ValueBadge from '@/components/value-badge'
+import { apiGet } from '@/lib/api-client'
 
 type JsonValue = null | boolean | number | string | JsonObject | JsonValue[]
 type JsonObject = { [key: string]: JsonValue }
@@ -115,11 +116,7 @@ function renderGenericObject(data: JsonObject) {
           <div className='rounded-lg border border-slate-200 bg-slate-50 p-3' key={key}>
             <p className='text-[11px] font-semibold uppercase tracking-wide text-slate-500'>{key}</p>
             <div className='mt-1 text-sm text-slate-800'>
-              {shouldBadge(key, data[key] as JsonValue) ? (
-                <ValueBadge value={String(data[key])} />
-              ) : (
-                formatCell(data[key] as JsonValue)
-              )}
+              {shouldBadge(key, data[key] as JsonValue) ? <ValueBadge value={String(data[key])} /> : formatCell(data[key] as JsonValue)}
             </div>
           </div>
         ))}

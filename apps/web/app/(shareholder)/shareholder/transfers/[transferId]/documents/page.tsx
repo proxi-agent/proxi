@@ -1,7 +1,8 @@
 'use client'
 
-import CaseDetailPanel from '@/components/case-detail-panel'
 import { useParams } from 'next/navigation'
+
+import CaseDetailPanel from '@/components/case-detail-panel'
 
 export default function ShareholderTransferDocumentsPage() {
   const params = useParams<{ transferId: string }>()

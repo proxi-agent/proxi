@@ -1,8 +1,9 @@
 'use client'
 
 import { usePathname, useRouter } from 'next/navigation'
-import { useEffect } from 'react'
 import type { ReactNode } from 'react'
+import { useEffect } from 'react'
+
 import { useAuth } from '@/lib/auth/auth-context'
 import { canAccessPortal, defaultPortalPathForRole } from '@/lib/auth/rbac'
 

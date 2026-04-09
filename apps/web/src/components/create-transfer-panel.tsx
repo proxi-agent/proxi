@@ -1,8 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { useState } from 'react'
+
 import { apiPost } from '@/lib/api-client'
 import type { CaseRecord } from '@/types/cases'
 
@@ -72,7 +73,11 @@ export default function CreateTransferPanel() {
 
       <div className='mt-4 grid grid-cols-1 gap-3 xl:grid-cols-2'>
         <Field label='Security ID'>
-          <input className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm' onChange={event => setForm(prev => ({ ...prev, securityId: event.target.value }))} value={form.securityId} />
+          <input
+            className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm'
+            onChange={event => setForm(prev => ({ ...prev, securityId: event.target.value }))}
+            value={form.securityId}
+          />
         </Field>
         <Field label='Quantity'>
           <input
@@ -84,10 +89,18 @@ export default function CreateTransferPanel() {
           />
         </Field>
         <Field label='From holder'>
-          <input className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm' onChange={event => setForm(prev => ({ ...prev, fromHolderId: event.target.value }))} value={form.fromHolderId} />
+          <input
+            className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm'
+            onChange={event => setForm(prev => ({ ...prev, fromHolderId: event.target.value }))}
+            value={form.fromHolderId}
+          />
         </Field>
         <Field label='To holder'>
-          <input className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm' onChange={event => setForm(prev => ({ ...prev, toHolderId: event.target.value }))} value={form.toHolderId} />
+          <input
+            className='w-full rounded-md border border-slate-300 px-3 py-2 text-sm'
+            onChange={event => setForm(prev => ({ ...prev, toHolderId: event.target.value }))}
+            value={form.toHolderId}
+          />
         </Field>
       </div>
 
@@ -101,10 +114,20 @@ export default function CreateTransferPanel() {
       </label>
 
       <div className='mt-4 flex flex-wrap gap-3'>
-        <button className='rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60' disabled={pending} onClick={evaluateRules} type='button'>
+        <button
+          className='rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 hover:bg-slate-50 disabled:opacity-60'
+          disabled={pending}
+          onClick={evaluateRules}
+          type='button'
+        >
           Evaluate rules
         </button>
-        <button className='rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60' disabled={pending} onClick={createTransfer} type='button'>
+        <button
+          className='rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-60'
+          disabled={pending}
+          onClick={createTransfer}
+          type='button'
+        >
           Create transfer case
         </button>
       </div>
@@ -116,9 +139,11 @@ export default function CreateTransferPanel() {
           <p className='mt-1 text-sm text-slate-700'>Eligible: {String(rules.evaluation.eligible)}</p>
           {rules.requirements.length ? (
             <ul className='mt-2 list-disc space-y-1 pl-4 text-sm text-slate-700'>
-              {[...rules.requirements].sort((a, b) => a.localeCompare(b)).map(req => (
-                <li key={req}>{req}</li>
-              ))}
+              {[...rules.requirements]
+                .sort((a, b) => a.localeCompare(b))
+                .map(req => (
+                  <li key={req}>{req}</li>
+                ))}
             </ul>
           ) : null}
         </div>

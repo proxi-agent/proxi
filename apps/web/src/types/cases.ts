@@ -1,23 +1,23 @@
-export type CaseType = 'TRANSFER' | 'ISSUE' | 'CANCEL'
-export type CaseStatus = 'PENDING' | 'COMPLETED' | 'FAILED'
-export type CaseLifecycleStage = 'REQUESTED' | 'EVIDENCE_PENDING' | 'RESTRICTIONS_REVIEW' | 'APPROVED' | 'COMPLETED' | 'REJECTED' | 'FAILED'
+export type CaseLifecycleStage = 'APPROVED' | 'COMPLETED' | 'EVIDENCE_PENDING' | 'FAILED' | 'REJECTED' | 'REQUESTED' | 'RESTRICTIONS_REVIEW'
+export type CaseStatus = 'COMPLETED' | 'FAILED' | 'PENDING'
+export type CaseType = 'CANCEL' | 'ISSUE' | 'TRANSFER'
 
 export interface CaseRecord {
   createdAt: string
   evidenceRequired: string[]
   evidenceSubmitted: string[]
   failureReason?: string
+  fromHolderId?: string
+  holderId?: string
   id: number
   lifecycleStage: CaseLifecycleStage
   missingEvidence: string[]
+  quantity: number
   restrictionBlockingReasons: string[]
   restrictionChecks: Array<{ detail: string; name: string; passed: boolean }>
-  status: CaseStatus
-  updatedAt: string
-  type: CaseType
   securityId: string
-  fromHolderId?: string
+  status: CaseStatus
   toHolderId?: string
-  holderId?: string
-  quantity: number
+  type: CaseType
+  updatedAt: string
 }

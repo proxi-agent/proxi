@@ -8,7 +8,13 @@ function classify(value: string): BadgeTone {
   if (normalized.includes('pending') || normalized.includes('review') || normalized.includes('medium') || normalized.includes('open')) {
     return 'warning'
   }
-  if (normalized.includes('completed') || normalized.includes('resolved') || normalized.includes('approved') || normalized.includes('low') || normalized.includes('ok')) {
+  if (
+    normalized.includes('completed') ||
+    normalized.includes('resolved') ||
+    normalized.includes('approved') ||
+    normalized.includes('low') ||
+    normalized.includes('ok')
+  ) {
     return 'success'
   }
   if (normalized.includes('info')) {

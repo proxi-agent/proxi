@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+
 import { PORTAL_MOCKS, type PortalMockPayload } from '../mock/portal-mocks.js'
 
 export interface AuditTrailEntry {

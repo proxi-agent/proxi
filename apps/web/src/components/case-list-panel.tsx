@@ -2,9 +2,10 @@
 
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
+
+import ValueBadge from '@/components/value-badge'
 import { apiGet } from '@/lib/api-client'
 import type { CaseRecord } from '@/types/cases'
-import ValueBadge from '@/components/value-badge'
 
 type SortField = 'createdAt' | 'id' | 'quantity'
 
@@ -53,7 +54,11 @@ export default function CaseListPanel({ basePath, title }: { basePath: string; t
         <h2 className='text-xl font-semibold text-slate-900'>{title}</h2>
         <label className='text-sm text-slate-600'>
           Sort by{' '}
-          <select className='rounded-md border border-slate-300 bg-white px-2 py-1' onChange={event => setSortBy(event.target.value as SortField)} value={sortBy}>
+          <select
+            className='rounded-md border border-slate-300 bg-white px-2 py-1'
+            onChange={event => setSortBy(event.target.value as SortField)}
+            value={sortBy}
+          >
             <option value='createdAt'>Most recent</option>
             <option value='id'>Case ID</option>
             <option value='quantity'>Quantity</option>

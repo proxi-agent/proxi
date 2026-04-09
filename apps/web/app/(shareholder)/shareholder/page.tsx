@@ -2,8 +2,8 @@
 
 import CaseListPanel from '@/components/case-list-panel'
 import EndpointPreview from '@/components/endpoint-preview'
-import { can } from '@/lib/auth/rbac'
 import { useAuth } from '@/lib/auth/auth-context'
+import { can } from '@/lib/auth/rbac'
 
 export default function ShareholderDashboardPage() {
   const { user } = useAuth()

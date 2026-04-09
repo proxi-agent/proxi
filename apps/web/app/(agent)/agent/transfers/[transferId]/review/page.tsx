@@ -1,9 +1,10 @@
 'use client'
 
-import CaseDetailPanel from '@/components/case-detail-panel'
-import { can } from '@/lib/auth/rbac'
-import { useAuth } from '@/lib/auth/auth-context'
 import { useParams } from 'next/navigation'
+
+import CaseDetailPanel from '@/components/case-detail-panel'
+import { useAuth } from '@/lib/auth/auth-context'
+import { can } from '@/lib/auth/rbac'
 
 export default function AgentTransferReviewPage() {
   const params = useParams<{ transferId: string }>()

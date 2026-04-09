@@ -1,7 +1,8 @@
 import { createClerkClient, verifyToken } from '@clerk/backend'
-import { Injectable, UnauthorizedException } from '@nestjs/common'
 import type { CanActivate, ExecutionContext } from '@nestjs/common'
+import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
+
 import type { AuthenticatedRequest } from './authenticated-request.js'
 import { IS_PUBLIC_KEY } from './public.decorator.js'
 import { isRole } from './rbac.js'
@@ -44,7 +45,9 @@ export class ClerkAuthGuard implements CanActivate {
 
     request.authUser = {
       clerkUserId: clerkUser.id,
-      email: clerkUser.emailAddresses.find(entry => entry.id === clerkUser.primaryEmailAddressId)?.emailAddress || `${clerkUser.id}@unknown.local`,
+      email:
+        clerkUser.emailAddresses.find(entry => entry.id === clerkUser.primaryEmailAddressId)?.emailAddress ||
+        `${clerkUser.id}@unknown.local`,
       name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || clerkUser.username || clerkUser.id,
       role,
     }

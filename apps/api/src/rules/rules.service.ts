@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common'
+
+import type { CaseType } from '../cases/cases.service.js'
 import { LedgerService, type Position } from '../ledger/ledger.service.js'
-import type { CaseType } from '../cases/cases.service.ts'
 
 export interface RestrictionContext {
   companyApproval?: boolean

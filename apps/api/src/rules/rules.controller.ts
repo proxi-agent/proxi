@@ -1,7 +1,23 @@
 import { Body, Controller, Post } from '@nestjs/common'
+
 import { Permissions } from '../auth/permissions.decorator.js'
-import type { CaseType } from '../cases/cases.service.ts'
-import { RulesService } from './rules.service.js'
+import type { CaseType } from '../cases/cases.service.js'
+
+import { type RestrictionContext, RulesService } from './rules.service.js'
+
+type EvaluateRulesBody = RestrictionContext & {
+  fromHolderId?: string
+  quantity?: number
+  securityId: string
+  toHolderId?: string
+  type: CaseType
+}
+
+const REQUIREMENTS_BY_TYPE: Record<CaseType, string[]> = {
+  CANCEL: ['Cancellation authorization', 'Supporting legal/tax release (if applicable)'],
+  ISSUE: ['Board resolution approving issuance', 'Issuance instruction notice'],
+  TRANSFER: ['Identity verification', 'Medallion signature guarantee', 'Stock power document', 'Transfer instruction letter'],
+}
 
 @Controller('rules')
 export class RulesController {
@@ -13,21 +29,8 @@ export class RulesController {
    */
   @Post('evaluate')
   @Permissions('shareholder.transfer.create', 'transfer.review')
-  async evaluate(@Body() body: any) {
-    const type = body.type as CaseType
-    const requirements = [] as string[]
-    if (type === 'TRANSFER') {
-      requirements.push('Identity verification')
-      requirements.push('Medallion signature guarantee')
-      requirements.push('Stock power document')
-      requirements.push('Transfer instruction letter')
-    } else if (type === 'ISSUE') {
-      requirements.push('Board resolution approving issuance')
-      requirements.push('Issuance instruction notice')
-    } else if (type === 'CANCEL') {
-      requirements.push('Cancellation authorization')
-      requirements.push('Supporting legal/tax release (if applicable)')
-    }
+  async evaluate(@Body() body: EvaluateRulesBody) {
+    const requirements = REQUIREMENTS_BY_TYPE[body.type] || []
 
     const evaluation = await this.rulesService.evaluate({
       companyApproval: body.companyApproval,
@@ -38,7 +41,7 @@ export class RulesController {
       secRestrictionActive: body.secRestrictionActive,
       securityId: body.securityId,
       toHolderId: body.toHolderId,
-      type,
+      type: body.type,
     })
 
     return {
