@@ -32,6 +32,14 @@
         {
           "name": "DB_SSL_MODE",
           "value": "require"
+        },
+        {
+          "name": "CORS_ALLOW_VERCEL_PREVIEWS",
+          "value": "true"
+        },
+        {
+          "name": "CORS_VERCEL_PREVIEW_SUFFIXES",
+          "value": ".vercel.app"
         }
       ],
       "secrets": [
