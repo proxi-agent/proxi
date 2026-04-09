@@ -9,9 +9,12 @@ import { canAccessPortal, defaultPortalPathForRole } from '@/lib/auth/rbac'
 export default function AuthGuard({ children, portal }: { children: ReactNode; portal: 'agent' | 'issuer' | 'shareholder' }) {
   const pathname = usePathname()
   const router = useRouter()
-  const { user } = useAuth()
+  const { isLoaded, user } = useAuth()
 
   useEffect(() => {
+    if (!isLoaded) {
+      return
+    }
     if (!user) {
       router.replace(`/login?next=${encodeURIComponent(pathname || '/')}`)
       return
@@ -19,9 +22,9 @@ export default function AuthGuard({ children, portal }: { children: ReactNode; p
     if (!canAccessPortal(user, portal)) {
       router.replace(defaultPortalPathForRole(user.role))
     }
-  }, [pathname, portal, router, user])
+  }, [isLoaded, pathname, portal, router, user])
 
-  if (!user || !canAccessPortal(user, portal)) {
+  if (!isLoaded || !user || !canAccessPortal(user, portal)) {
     return <p className='p-6 text-sm text-slate-500'>Checking access...</p>
   }
 

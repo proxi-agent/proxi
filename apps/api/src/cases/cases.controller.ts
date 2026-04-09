@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Post, HttpException, HttpStatus } from '@nestjs/common'
+import { Permissions } from '../auth/permissions.decorator.js'
 import { CasesService } from './cases.service.js'
 import type { Case, CaseType } from './cases.service.js'
 import type { RestrictionContext } from '../rules/rules.service.js'
@@ -26,18 +27,21 @@ class ReprocessCaseDto {
 export class CasesController {
   constructor(private readonly casesService: CasesService) {}
 
+  @Permissions('transfer.view')
   @Get()
-  getCases(): Case[] {
+  async getCases(): Promise<Case[]> {
     return this.casesService.getCases()
   }
 
+  @Permissions('transfer.view')
   @Get(':id')
-  getCase(@Param('id', ParseIntPipe) id: number): Case {
+  async getCase(@Param('id', ParseIntPipe) id: number): Promise<Case> {
     return this.casesService.getCaseById(id)
   }
 
+  @Permissions('shareholder.transfer.create', 'transfer.review')
   @Post()
-  createCase(@Body() body: CreateCaseDto): Case {
+  async createCase(@Body() body: CreateCaseDto): Promise<Case> {
     const { type, securityId, quantity, fromHolderId, toHolderId, holderId, evidenceDocs, restrictionContext } = body
     if (!type || !securityId || typeof quantity !== 'number' || quantity <= 0) {
       throw new HttpException('Invalid body', HttpStatus.BAD_REQUEST)
@@ -54,16 +58,18 @@ export class CasesController {
     })
   }
 
+  @Permissions('shareholder.transfer.create', 'transfer.review')
   @Post(':id/evidence')
-  submitEvidence(@Param('id', ParseIntPipe) id: number, @Body() body: SubmitEvidenceDto): Case {
+  async submitEvidence(@Param('id', ParseIntPipe) id: number, @Body() body: SubmitEvidenceDto): Promise<Case> {
     if (!body.docType) {
       throw new HttpException('docType is required', HttpStatus.BAD_REQUEST)
     }
     return this.casesService.submitEvidence(id, body.docType)
   }
 
+  @Permissions('transfer.review')
   @Post(':id/reprocess')
-  reprocessCase(@Param('id', ParseIntPipe) id: number, @Body() body: ReprocessCaseDto): Case {
+  async reprocessCase(@Param('id', ParseIntPipe) id: number, @Body() body: ReprocessCaseDto): Promise<Case> {
     return this.casesService.reprocessCase(id, body.restrictionContext)
   }
 }

@@ -1,72 +1,96 @@
 'use client'
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react'
+import { useAuth as useClerkAuth, useUser } from '@clerk/nextjs'
+import { createContext, useContext, useEffect, useMemo } from 'react'
 import type { ReactNode } from 'react'
-import { ROLES, type Role, type User } from './rbac'
+import { isRole, type Role, type User } from './rbac'
 
 type AuthContextValue = {
-  loginAs: (role: Role) => void
-  logout: () => void
-  setRole: (role: Role) => void
+  getToken: () => Promise<string | null>
+  isLoaded: boolean
+  loginAs: (role: Role) => Promise<void>
+  logout: () => Promise<void>
+  setRole: (role: Role) => Promise<void>
   user: User | null
 }
 
-const STORAGE_KEY = 'proxi.auth.user'
-
 const defaultContext: AuthContextValue = {
-  loginAs: () => undefined,
-  logout: () => undefined,
-  setRole: () => undefined,
+  getToken: async () => null,
+  isLoaded: false,
+  loginAs: async () => undefined,
+  logout: async () => undefined,
+  setRole: async () => undefined,
   user: null,
 }
 
 const AuthContext = createContext<AuthContextValue>(defaultContext)
 
-function getDefaultUser(role: Role): User {
-  return {
-    email: `${role}@proxi.local`,
-    name: role.replaceAll('_', ' '),
-    role,
-  }
-}
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
+  const { getToken, isLoaded: authLoaded, signOut } = useClerkAuth()
+  const { isLoaded: userLoaded, user: clerkUser } = useUser()
 
   useEffect(() => {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    if (!raw) {
+    if (!authLoaded || !userLoaded || !clerkUser) {
       return
     }
-    try {
-      const parsed = JSON.parse(raw) as User
-      if (ROLES.includes(parsed.role)) {
-        setUser(parsed)
-      }
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY)
+    const metadataRole = clerkUser.publicMetadata?.role ?? clerkUser.unsafeMetadata?.role
+    if (isRole(metadataRole)) {
+      return
     }
-  }, [])
+    void clerkUser.update({
+      unsafeMetadata: {
+        ...(clerkUser.unsafeMetadata || {}),
+        role: 'shareholder',
+      },
+    })
+  }, [authLoaded, clerkUser, userLoaded])
 
   const value = useMemo<AuthContextValue>(
-    () => ({
-      loginAs(role) {
-        const nextUser = getDefaultUser(role)
-        setUser(nextUser)
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser))
-      },
-      logout() {
-        setUser(null)
-        window.localStorage.removeItem(STORAGE_KEY)
-      },
-      setRole(role) {
-        const nextUser = getDefaultUser(role)
-        setUser(nextUser)
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextUser))
-      },
-      user,
-    }),
-    [user],
+    () => {
+      const metadataRole = clerkUser?.publicMetadata?.role ?? clerkUser?.unsafeMetadata?.role
+      const role: Role = isRole(metadataRole) ? metadataRole : 'shareholder'
+      const currentUser: User | null = clerkUser
+        ? {
+            email: clerkUser.primaryEmailAddress?.emailAddress || `${clerkUser.id}@unknown.local`,
+            name: [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || clerkUser.username || 'Unknown user',
+            role,
+          }
+        : null
+
+      return {
+        async getToken() {
+          return getToken()
+        },
+        isLoaded: authLoaded && userLoaded,
+        async loginAs(nextRole) {
+          if (!clerkUser) {
+            return
+          }
+          await clerkUser.update({
+            unsafeMetadata: {
+              ...(clerkUser.unsafeMetadata || {}),
+              role: nextRole,
+            },
+          })
+        },
+        async logout() {
+          await signOut({ redirectUrl: '/login' })
+        },
+        async setRole(nextRole) {
+          if (!clerkUser) {
+            return
+          }
+          await clerkUser.update({
+            unsafeMetadata: {
+              ...(clerkUser.unsafeMetadata || {}),
+              role: nextRole,
+            },
+          })
+        },
+        user: currentUser,
+      }
+    },
+    [authLoaded, clerkUser, getToken, signOut, userLoaded],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

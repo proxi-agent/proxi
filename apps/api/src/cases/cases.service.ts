@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
+import type { OnModuleInit } from '@nestjs/common'
+import { DatabaseService } from '../database/database.service.js'
 import { LedgerService } from '../ledger/ledger.service.js'
 import { RulesService } from '../rules/rules.service.js'
 import type { RestrictionCheck, RestrictionContext } from '../rules/rules.service.js'
@@ -39,16 +41,40 @@ export interface Case {
   quantity: number
 }
 
-@Injectable()
-export class CasesService {
-  private cases: Case[] = []
-  private nextId = 1
+type CaseRow = {
+  id: number
+  created_at: Date
+  updated_at: Date
+  type: CaseType
+  security_id: string
+  quantity: number
+  from_holder_id: string | null
+  to_holder_id: string | null
+  holder_id: string | null
+  status: CaseStatus
+  lifecycle_stage: CaseLifecycleStage
+  evidence_required: string[]
+  evidence_submitted: string[]
+  missing_evidence: string[]
+  restriction_blocking_reasons: string[]
+  restriction_checks: Array<{ detail: string; name: string; passed: boolean }>
+  restriction_context: RestrictionContext
+  failure_reason: string | null
+}
 
+@Injectable()
+export class CasesService implements OnModuleInit {
   constructor(
+    private readonly database: DatabaseService,
     private readonly ledgerService: LedgerService,
     private readonly rulesService: RulesService,
-  ) {
-    this.seedDummyCases()
+  ) {}
+
+  async onModuleInit() {
+    const count = await this.database.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM transfer_cases')
+    if (Number(count.rows[0]?.count || '0') === 0) {
+      await this.seedDummyCases()
+    }
   }
 
   private getRequiredEvidence(type: CaseType): string[] {
@@ -62,7 +88,7 @@ export class CasesService {
   }
 
   private normalizeEvidence(docs: string[] = []): string[] {
-    return Array.from(new Set(docs.map(doc => doc.trim()).filter(doc => Boolean(doc)))).sort((a, b) => a.localeCompare(b))
+    return Array.from(new Set(docs.map(doc => doc.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   }
 
   private hydrateEvidenceState(entry: Case): void {
@@ -71,26 +97,27 @@ export class CasesService {
     entry.missingEvidence = entry.evidenceRequired.filter(requiredDoc => !submitted.includes(requiredDoc))
   }
 
-  private executeLedgerStep(entry: Case): void {
+  private async executeLedgerStep(entry: Case): Promise<void> {
     if (entry.type === 'TRANSFER' && entry.fromHolderId && entry.toHolderId) {
-      this.ledgerService.transfer(entry.securityId, entry.fromHolderId, entry.toHolderId, entry.quantity)
+      await this.ledgerService.transfer(entry.securityId, entry.fromHolderId, entry.toHolderId, entry.quantity)
       return
     }
     if (entry.type === 'ISSUE' && entry.holderId) {
-      this.ledgerService.issue(entry.securityId, entry.holderId, entry.quantity)
+      await this.ledgerService.issue(entry.securityId, entry.holderId, entry.quantity)
       return
     }
     if (entry.type === 'CANCEL' && entry.holderId) {
-      this.ledgerService.cancel(entry.securityId, entry.holderId, entry.quantity)
+      await this.ledgerService.cancel(entry.securityId, entry.holderId, entry.quantity)
     }
   }
 
-  private processCase(entry: Case, context?: RestrictionContext): Case {
+  private async processCase(entry: Case, context?: RestrictionContext): Promise<Case> {
     entry.updatedAt = new Date()
     entry.lifecycleStage = 'REQUESTED'
     if (context) {
       entry.restrictionContext = { ...entry.restrictionContext, ...context }
     }
+
     this.hydrateEvidenceState(entry)
     if (entry.missingEvidence.length > 0) {
       entry.lifecycleStage = 'EVIDENCE_PENDING'
@@ -98,12 +125,12 @@ export class CasesService {
       entry.failureReason = `Missing evidence: ${entry.missingEvidence.join(', ')}`
       entry.restrictionBlockingReasons = []
       entry.restrictionChecks = []
-      return entry
+      return this.persistCase(entry)
     }
 
     entry.lifecycleStage = 'RESTRICTIONS_REVIEW'
     if (entry.type === 'TRANSFER') {
-      const evaluation = this.rulesService.evaluateTransferEligibility({
+      const evaluation = await this.rulesService.evaluateTransferEligibility({
         ...entry.restrictionContext,
         fromHolderId: entry.fromHolderId,
         quantity: entry.quantity,
@@ -121,7 +148,7 @@ export class CasesService {
         entry.lifecycleStage = 'REJECTED'
         entry.status = 'FAILED'
         entry.failureReason = `Restriction checks failed: ${evaluation.blockingReasons.join(', ')}`
-        return entry
+        return this.persistCase(entry)
       }
     } else {
       entry.restrictionBlockingReasons = []
@@ -130,7 +157,7 @@ export class CasesService {
 
     entry.lifecycleStage = 'APPROVED'
     try {
-      this.executeLedgerStep(entry)
+      await this.executeLedgerStep(entry)
       entry.lifecycleStage = 'COMPLETED'
       entry.status = 'COMPLETED'
       entry.failureReason = undefined
@@ -139,20 +166,11 @@ export class CasesService {
       entry.status = 'FAILED'
       entry.failureReason = 'Ledger execution failed.'
     }
-    return entry
+    return this.persistCase(entry)
   }
 
-  private seedDummyCases(): void {
-    const holders = [
-      'ALPHA_CAPITAL',
-      'AURORA_FUND',
-      'BANYAN_TRUST',
-      'CEDAR_BANK',
-      'DELTA_VENTURES',
-      'EVEREST_PARTNERS',
-      'GARNET_HOLDINGS',
-      'HARBOR_INVEST',
-    ]
+  private async seedDummyCases() {
+    const holders = ['ALPHA_CAPITAL', 'AURORA_FUND', 'BANYAN_TRUST', 'CEDAR_BANK', 'DELTA_VENTURES', 'EVEREST_PARTNERS', 'GARNET_HOLDINGS', 'HARBOR_INVEST']
     const securities = ['PROXI-CLASS-A', 'PROXI-CLASS-B', 'PROXI-GROWTH', 'PROXI-INCOME', 'PROXI-LP-2026']
     const types: CaseType[] = ['TRANSFER', 'ISSUE', 'CANCEL']
 
@@ -162,116 +180,155 @@ export class CasesService {
       const quantity = ((index % 8) + 1) * 2500
       const createdAt = new Date(Date.now() - index * 4 * 60 * 60 * 1000)
       const status: CaseStatus = index % 11 === 0 ? 'FAILED' : index % 5 === 0 ? 'PENDING' : 'COMPLETED'
+      const evidenceRequired = this.getRequiredEvidence(type)
+      const evidenceSubmitted = status === 'PENDING' ? evidenceRequired.slice(0, Math.max(1, evidenceRequired.length - 2)) : evidenceRequired
+      const missingEvidence = evidenceRequired.filter(item => !evidenceSubmitted.includes(item))
 
-      if (type === 'TRANSFER') {
-        const fromHolderId = holders[index % holders.length]
-        const toHolderId = holders[(index + 3) % holders.length]
-        const evidenceRequired = this.getRequiredEvidence(type)
-        const evidenceSubmitted = status === 'PENDING' ? evidenceRequired.slice(0, 2) : evidenceRequired
-        const lifecycleStage: CaseLifecycleStage =
-          status === 'COMPLETED' ? 'COMPLETED' : status === 'FAILED' ? 'REJECTED' : 'EVIDENCE_PENDING'
-        this.cases.push({
-          id: this.nextId++,
-          createdAt,
+      await this.database.query(
+        `INSERT INTO transfer_cases (
+          type, security_id, quantity, from_holder_id, to_holder_id, holder_id, status, lifecycle_stage,
+          evidence_required, evidence_submitted, missing_evidence, restriction_blocking_reasons, restriction_checks,
+          restriction_context, failure_reason, created_at, updated_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::text[],$10::text[],$11::text[],$12::text[],$13::jsonb,$14::jsonb,$15,$16,$17)`,
+        [
+          type,
+          securityId,
+          quantity,
+          type === 'TRANSFER' ? holders[index % holders.length] : null,
+          type === 'TRANSFER' ? holders[(index + 3) % holders.length] : null,
+          type !== 'TRANSFER' ? holders[index % holders.length] : null,
+          status,
+          status === 'COMPLETED' ? 'COMPLETED' : status === 'FAILED' ? (type === 'TRANSFER' ? 'REJECTED' : 'FAILED') : 'EVIDENCE_PENDING',
           evidenceRequired,
           evidenceSubmitted,
-          failureReason: status === 'FAILED' ? 'Restriction checks failed: Lock-up restriction check' : undefined,
-          fromHolderId,
-          lifecycleStage,
-          missingEvidence: status === 'PENDING' ? evidenceRequired.slice(2) : [],
-          quantity,
-          restrictionBlockingReasons: status === 'FAILED' ? ['Lock-up restriction check'] : [],
-          restrictionChecks: [],
-          restrictionContext: {},
-          securityId,
-          status,
-          toHolderId,
-          type,
-          updatedAt: createdAt,
-        })
-        continue
-      }
-
-      const holderId = holders[index % holders.length]
-      const evidenceRequired = this.getRequiredEvidence(type)
-      const evidenceSubmitted = status === 'PENDING' ? evidenceRequired.slice(0, 1) : evidenceRequired
-      const lifecycleStage: CaseLifecycleStage = status === 'COMPLETED' ? 'COMPLETED' : status === 'FAILED' ? 'FAILED' : 'EVIDENCE_PENDING'
-      this.cases.push({
-        id: this.nextId++,
-        createdAt,
-        evidenceRequired,
-        evidenceSubmitted,
-        failureReason: status === 'FAILED' ? 'Ledger execution failed.' : undefined,
-        holderId,
-        lifecycleStage,
-        missingEvidence: status === 'PENDING' ? evidenceRequired.slice(1) : [],
-        quantity,
-        restrictionBlockingReasons: [],
-        restrictionChecks: [],
-        restrictionContext: {},
-        securityId,
-        status,
-        type,
-        updatedAt: createdAt,
-      })
+          missingEvidence,
+          status === 'FAILED' && type === 'TRANSFER' ? ['Lock-up restriction check'] : [],
+          JSON.stringify([]),
+          JSON.stringify({}),
+          status === 'FAILED' ? (type === 'TRANSFER' ? 'Restriction checks failed: Lock-up restriction check' : 'Ledger execution failed.') : null,
+          createdAt,
+          createdAt,
+        ],
+      )
     }
   }
 
-  /**
-   * List all cases.
-   */
-  getCases(): Case[] {
-    return [...this.cases].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+  async getCases(): Promise<Case[]> {
+    const result = await this.database.query<CaseRow>(
+      `SELECT id, created_at, updated_at, type, security_id, quantity, from_holder_id, to_holder_id, holder_id, status, lifecycle_stage,
+              evidence_required, evidence_submitted, missing_evidence, restriction_blocking_reasons, restriction_checks, restriction_context, failure_reason
+       FROM transfer_cases
+       ORDER BY created_at DESC`,
+    )
+    return result.rows.map(mapCase)
   }
 
-  /**
-   * Get a case by ID.
-   */
-  getCaseById(id: number): Case {
-    const found = this.cases.find(c => c.id === id)
-    if (!found) {
+  async getCaseById(id: number): Promise<Case> {
+    const result = await this.database.query<CaseRow>(
+      `SELECT id, created_at, updated_at, type, security_id, quantity, from_holder_id, to_holder_id, holder_id, status, lifecycle_stage,
+              evidence_required, evidence_submitted, missing_evidence, restriction_blocking_reasons, restriction_checks, restriction_context, failure_reason
+       FROM transfer_cases
+       WHERE id = $1`,
+      [id],
+    )
+    if (!result.rows.length) {
       throw new NotFoundException('Case not found')
     }
-    return found
+    return mapCase(result.rows[0])
   }
 
-  createCase(input: CreateCaseInput): Case {
+  async createCase(input: CreateCaseInput): Promise<Case> {
     const evidenceRequired = this.getRequiredEvidence(input.type)
-    const newCase: Case = {
-      id: this.nextId++,
-      createdAt: new Date(),
-      evidenceRequired,
-      evidenceSubmitted: this.normalizeEvidence(input.evidenceDocs),
-      fromHolderId: input.fromHolderId,
-      holderId: input.holderId,
-      lifecycleStage: 'REQUESTED',
-      missingEvidence: [],
-      quantity: input.quantity,
-      restrictionBlockingReasons: [],
-      restrictionChecks: [],
-      restrictionContext: input.restrictionContext || {},
-      securityId: input.securityId,
-      status: 'PENDING',
-      toHolderId: input.toHolderId,
-      type: input.type,
-      updatedAt: new Date(),
-    }
-    this.cases.push(newCase)
-    return this.processCase(newCase, input.restrictionContext)
+    const insert = await this.database.query<CaseRow>(
+      `INSERT INTO transfer_cases (
+        type, security_id, quantity, from_holder_id, to_holder_id, holder_id, status, lifecycle_stage,
+        evidence_required, evidence_submitted, missing_evidence, restriction_blocking_reasons, restriction_checks, restriction_context, failure_reason
+      ) VALUES ($1,$2,$3,$4,$5,$6,'PENDING','REQUESTED',$7::text[],$8::text[],$9::text[],$10::text[],$11::jsonb,$12::jsonb,$13)
+      RETURNING id, created_at, updated_at, type, security_id, quantity, from_holder_id, to_holder_id, holder_id, status, lifecycle_stage,
+                evidence_required, evidence_submitted, missing_evidence, restriction_blocking_reasons, restriction_checks, restriction_context, failure_reason`,
+      [
+        input.type,
+        input.securityId,
+        input.quantity,
+        input.fromHolderId || null,
+        input.toHolderId || null,
+        input.holderId || null,
+        evidenceRequired,
+        this.normalizeEvidence(input.evidenceDocs),
+        [],
+        [],
+        JSON.stringify([]),
+        JSON.stringify(input.restrictionContext || {}),
+        null,
+      ],
+    )
+    return this.processCase(mapCase(insert.rows[0]), input.restrictionContext)
   }
 
-  submitEvidence(caseId: number, docType: string): Case {
-    const found = this.getCaseById(caseId)
+  async submitEvidence(caseId: number, docType: string): Promise<Case> {
+    const found = await this.getCaseById(caseId)
     if (!found.evidenceSubmitted.includes(docType)) {
       found.evidenceSubmitted.push(docType)
     }
-    found.updatedAt = new Date()
     this.hydrateEvidenceState(found)
-    return found
+    return this.persistCase(found)
   }
 
-  reprocessCase(caseId: number, restrictionContext?: RestrictionContext): Case {
-    const found = this.getCaseById(caseId)
+  async reprocessCase(caseId: number, restrictionContext?: RestrictionContext): Promise<Case> {
+    const found = await this.getCaseById(caseId)
     return this.processCase(found, restrictionContext)
+  }
+
+  private async persistCase(entry: Case): Promise<Case> {
+    const result = await this.database.query<CaseRow>(
+      `UPDATE transfer_cases
+       SET status = $2,
+           lifecycle_stage = $3,
+           evidence_submitted = $4::text[],
+           missing_evidence = $5::text[],
+           restriction_blocking_reasons = $6::text[],
+           restriction_checks = $7::jsonb,
+           restriction_context = $8::jsonb,
+           failure_reason = $9,
+           updated_at = NOW()
+       WHERE id = $1
+       RETURNING id, created_at, updated_at, type, security_id, quantity, from_holder_id, to_holder_id, holder_id, status, lifecycle_stage,
+                 evidence_required, evidence_submitted, missing_evidence, restriction_blocking_reasons, restriction_checks, restriction_context, failure_reason`,
+      [
+        entry.id,
+        entry.status,
+        entry.lifecycleStage,
+        entry.evidenceSubmitted,
+        entry.missingEvidence,
+        entry.restrictionBlockingReasons,
+        JSON.stringify(entry.restrictionChecks),
+        JSON.stringify(entry.restrictionContext),
+        entry.failureReason || null,
+      ],
+    )
+    return mapCase(result.rows[0])
+  }
+}
+
+function mapCase(row: CaseRow): Case {
+  return {
+    createdAt: new Date(row.created_at),
+    evidenceRequired: row.evidence_required || [],
+    evidenceSubmitted: row.evidence_submitted || [],
+    failureReason: row.failure_reason || undefined,
+    fromHolderId: row.from_holder_id || undefined,
+    holderId: row.holder_id || undefined,
+    id: row.id,
+    lifecycleStage: row.lifecycle_stage,
+    missingEvidence: row.missing_evidence || [],
+    quantity: row.quantity,
+    restrictionBlockingReasons: row.restriction_blocking_reasons || [],
+    restrictionChecks: (row.restriction_checks as Array<{ detail: string; name: string; passed: boolean }>) || [],
+    restrictionContext: (row.restriction_context as RestrictionContext) || {},
+    securityId: row.security_id,
+    status: row.status,
+    toHolderId: row.to_holder_id || undefined,
+    type: row.type,
+    updatedAt: new Date(row.updated_at),
   }
 }

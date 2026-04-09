@@ -9,9 +9,6 @@ export default function LandingPage() {
         <Link className='rounded-md bg-blue-700 px-4 py-2 text-white' href='/login'>
           Sign in
         </Link>
-        <Link className='rounded-md border border-slate-300 px-4 py-2 text-slate-700' href='/forgot-password'>
-          Forgot password
-        </Link>
       </div>
     </main>
   )

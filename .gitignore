@@ -39,3 +39,6 @@ packages/*/dist
 # test artifacts
 playwright-report
 test-results
+
+# local pem files
+*.pem

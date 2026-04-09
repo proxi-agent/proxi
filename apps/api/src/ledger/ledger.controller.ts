@@ -1,4 +1,5 @@
 import { Body, Controller, Get, HttpException, HttpStatus, Post } from '@nestjs/common'
+import { Permissions } from '../auth/permissions.decorator.js'
 import { LedgerService } from './ledger.service.js'
 import type { LedgerEvent, Position } from './ledger.service.js'
 
@@ -19,18 +20,21 @@ class TransferDto {
 export class LedgerController {
   constructor(private readonly ledgerService: LedgerService) {}
 
+  @Permissions('transfer.view')
   @Get('events')
-  getEvents(): LedgerEvent[] {
+  async getEvents(): Promise<LedgerEvent[]> {
     return this.ledgerService.getEvents()
   }
 
+  @Permissions('transfer.view')
   @Get('positions')
-  getPositions(): Position[] {
+  async getPositions(): Promise<Position[]> {
     return this.ledgerService.getPositions()
   }
 
+  @Permissions('ledger.post')
   @Post('issue')
-  issue(@Body() body: IssueDto): LedgerEvent {
+  async issue(@Body() body: IssueDto): Promise<LedgerEvent> {
     const { securityId, holderId, quantity } = body
     if (!securityId || !holderId || typeof quantity !== 'number' || quantity <= 0) {
       throw new HttpException('Invalid body', HttpStatus.BAD_REQUEST)
@@ -38,8 +42,9 @@ export class LedgerController {
     return this.ledgerService.issue(securityId, holderId, quantity)
   }
 
+  @Permissions('ledger.post')
   @Post('transfer')
-  transfer(@Body() body: TransferDto): LedgerEvent {
+  async transfer(@Body() body: TransferDto): Promise<LedgerEvent> {
     const { securityId, fromHolderId, toHolderId, quantity } = body
     if (!securityId || !fromHolderId || !toHolderId || typeof quantity !== 'number' || quantity <= 0) {
       throw new HttpException('Invalid body', HttpStatus.BAD_REQUEST)

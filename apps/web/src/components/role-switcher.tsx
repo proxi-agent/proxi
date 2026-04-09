@@ -1,12 +1,14 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import { useAuth } from '@/lib/auth/auth-context'
 import { defaultPortalPathForRole, ROLE_LABELS, ROLES, type Role } from '@/lib/auth/rbac'
 
 export default function RoleSwitcher() {
   const router = useRouter()
   const { setRole, user } = useAuth()
+  const [updating, setUpdating] = useState(false)
 
   if (!user) {
     return null
@@ -17,10 +19,16 @@ export default function RoleSwitcher() {
       Role
       <select
         className='rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-800'
-        onChange={event => {
+        disabled={updating}
+        onChange={async event => {
           const nextRole = event.target.value as Role
-          setRole(nextRole)
-          router.replace(defaultPortalPathForRole(nextRole))
+          setUpdating(true)
+          try {
+            await setRole(nextRole)
+            router.replace(defaultPortalPathForRole(nextRole))
+          } finally {
+            setUpdating(false)
+          }
         }}
         value={user.role}
       >

@@ -1,15 +1,15 @@
 'use client'
 
+import CaseDetailPanel from '@/components/case-detail-panel'
 import { useParams } from 'next/navigation'
 
 export default function ShareholderTransferDetailPage() {
   const params = useParams<{ transferId: string }>()
-  const transferId = params?.transferId || 'unknown'
+  const transferId = Number(params?.transferId || 0)
 
-  return (
-    <section className='rounded-xl border border-slate-200 bg-white p-6'>
-      <h2 className='text-xl font-semibold text-slate-900'>Transfer {transferId}</h2>
-      <p className='mt-2 text-sm text-slate-600'>Review submitted transfer details.</p>
-    </section>
-  )
+  if (!transferId) {
+    return <p className='rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700'>Invalid transfer ID.</p>
+  }
+
+  return <CaseDetailPanel caseId={transferId} mode='summary' />
 }

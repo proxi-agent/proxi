@@ -24,6 +24,24 @@
         {
           "name": "PORT",
           "value": "3002"
+        },
+        {
+          "name": "CORS_ORIGIN",
+          "value": "https://proxi-agent.vercel.app/"
+        },
+        {
+          "name": "DB_SSL_MODE",
+          "value": "require"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:032847238998:secret:proxi/prod/database_url"
+        },
+        {
+          "name": "CLERK_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:032847238998:secret:proxi/prod/clerk_secret_key"
         }
       ],
       "logConfiguration": {

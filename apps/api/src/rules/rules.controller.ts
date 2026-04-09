@@ -1,5 +1,6 @@
 import { Body, Controller, Post } from '@nestjs/common'
-import type { CaseType } from '../cases/cases.service.js'
+import { Permissions } from '../auth/permissions.decorator.js'
+import type { CaseType } from '../cases/cases.service.ts'
 import { RulesService } from './rules.service.js'
 
 @Controller('rules')
@@ -11,7 +12,8 @@ export class RulesController {
    * policy engine here (e.g. to enforce Rule 144, lockups, or restricted legends).
    */
   @Post('evaluate')
-  evaluate(@Body() body: any) {
+  @Permissions('shareholder.transfer.create', 'transfer.review')
+  async evaluate(@Body() body: any) {
     const type = body.type as CaseType
     const requirements = [] as string[]
     if (type === 'TRANSFER') {
@@ -27,7 +29,7 @@ export class RulesController {
       requirements.push('Supporting legal/tax release (if applicable)')
     }
 
-    const evaluation = this.rulesService.evaluate({
+    const evaluation = await this.rulesService.evaluate({
       companyApproval: body.companyApproval,
       fromHolderId: body.fromHolderId,
       hasLien: body.hasLien,

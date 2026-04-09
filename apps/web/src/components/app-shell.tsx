@@ -51,7 +51,7 @@ export default function AppShell({
           </div>
           <div className='flex items-center gap-3'>
             <RoleSwitcher />
-            <button className='rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700' onClick={logout} type='button'>
+            <button className='rounded-md border border-slate-300 px-3 py-1.5 text-sm text-slate-700' onClick={() => void logout()} type='button'>
               Sign out
             </button>
           </div>

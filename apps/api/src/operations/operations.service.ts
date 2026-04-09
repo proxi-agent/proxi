@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common'
+import { PORTAL_MOCKS, type PortalMockPayload } from '../mock/portal-mocks.js'
 
 export interface AuditTrailEntry {
   id: number
@@ -47,6 +48,10 @@ export interface ReportsSummary {
   totalLedgerEvents: number
 }
 
+export interface PortalMockResponse extends PortalMockPayload {
+  page: string
+}
+
 @Injectable()
 export class OperationsService {
   private readonly auditTrail: AuditTrailEntry[] = []
@@ -81,6 +86,20 @@ export class OperationsService {
 
   getReportsSummary(): ReportsSummary {
     return this.reportsSummary
+  }
+
+  getPortalMock(page: string, transferId?: string): PortalMockResponse | null {
+    const template = PORTAL_MOCKS[page]
+    if (!template) {
+      return null
+    }
+
+    const tokenized = JSON.stringify(template).replaceAll('{{transferId}}', transferId || 'TRANSFER-1234')
+    const payload = JSON.parse(tokenized) as PortalMockPayload
+    return {
+      page,
+      ...payload,
+    }
   }
 
   private seedAuditTrail(): AuditTrailEntry[] {

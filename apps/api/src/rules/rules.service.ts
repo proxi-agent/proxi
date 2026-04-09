@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { LedgerService, type Position } from '../ledger/ledger.service.js'
-import type { CaseType } from '../cases/cases.service.js'
+import type { CaseType } from '../cases/cases.service.ts'
 
 export interface RestrictionContext {
   companyApproval?: boolean
@@ -34,15 +34,16 @@ export interface EvaluateRulesInput extends RestrictionContext {
 export class RulesService {
   constructor(private readonly ledgerService: LedgerService) {}
 
-  evaluateTransferEligibility(input: EvaluateRulesInput): RestrictionEvaluation {
+  async evaluateTransferEligibility(input: EvaluateRulesInput): Promise<RestrictionEvaluation> {
     const checks: RestrictionCheck[] = []
     const quantity = Number(input.quantity || 0)
     const fromHolderId = input.fromHolderId || ''
     const toHolderId = input.toHolderId || ''
 
-    const currentPosition = this.ledgerService
-      .getPositions()
-      .find((position: Position) => position.securityId === input.securityId && position.holderId === fromHolderId)
+    const positions = await this.ledgerService.getPositions()
+    const currentPosition = positions.find(
+      (position: Position) => position.securityId === input.securityId && position.holderId === fromHolderId,
+    )
     const availableUnits = currentPosition?.quantity || 0
 
     checks.push({
@@ -95,7 +96,7 @@ export class RulesService {
     }
   }
 
-  evaluate(input: EvaluateRulesInput): RestrictionEvaluation {
+  async evaluate(input: EvaluateRulesInput): Promise<RestrictionEvaluation> {
     if (input.type === 'TRANSFER') {
       return this.evaluateTransferEligibility(input)
     }

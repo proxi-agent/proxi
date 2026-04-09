@@ -92,3 +92,7 @@ export function defaultPortalPathForRole(role: Role): string {
       return '/agent'
   }
 }
+
+export function isRole(value: unknown): value is Role {
+  return typeof value === 'string' && ROLES.includes(value as Role)
+}

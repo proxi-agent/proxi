@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import AppShell from '@/components/app-shell'
 import AuthGuard from '@/components/auth-guard'
+import RolePageDataPanel from '@/components/role-page-data-panel'
 
 const navItems = [
   { href: '/shareholder', label: 'Dashboard' },
@@ -13,6 +14,7 @@ export default function ShareholderLayout({ children }: { children: ReactNode })
   return (
     <AuthGuard portal='shareholder'>
       <AppShell navItems={navItems} subtitle='Shareholder Portal' title='Proxi Shareholder'>
+        <RolePageDataPanel />
         {children}
       </AppShell>
     </AuthGuard>
