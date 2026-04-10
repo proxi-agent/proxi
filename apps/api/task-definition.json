@@ -27,7 +27,7 @@
         },
         {
           "name": "CORS_ORIGIN",
-          "value": "https://proxi-agent.vercel.app/"
+          "value": "https://proxi-agent.vercel.app"
         },
         {
           "name": "DB_SSL_MODE",
@@ -45,11 +45,11 @@
       "secrets": [
         {
           "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:032847238998:secret:proxi/prod/database_url"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:032847238998:secret:proxi/prod/database_url:DATABASE_URL::"
         },
         {
           "name": "CLERK_SECRET_KEY",
-          "valueFrom": "arn:aws:secretsmanager:us-east-1:032847238998:secret:proxi/prod/clerk_secret_key"
+          "valueFrom": "arn:aws:secretsmanager:us-east-1:032847238998:secret:proxi/prod/clerk_secret_key:CLERK_SECRET_KEY::"
         }
       ],
       "logConfiguration": {
