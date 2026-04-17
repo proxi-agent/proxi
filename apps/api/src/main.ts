@@ -14,12 +14,7 @@ function parseCsv(value?: string): string[] {
     .filter(Boolean)
 }
 
-function isAllowedOrigin(
-  origin: string,
-  allowedOrigins: string[],
-  allowVercelPreviews: boolean,
-  vercelPreviewSuffixes: string[],
-): boolean {
+function isAllowedOrigin(origin: string, allowedOrigins: string[], allowVercelPreviews: boolean, vercelPreviewSuffixes: string[]): boolean {
   if (allowedOrigins.includes(origin)) {
     return true
   }

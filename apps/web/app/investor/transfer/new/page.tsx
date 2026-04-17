@@ -7,13 +7,7 @@ import { PageHeader } from '@/components/ui'
 
 export default function GuidedIntakePage() {
   return (
-    <AppShell
-      breadcrumbs={[
-        { href: '/investor', label: 'Investor' },
-        { label: 'New transfer' },
-      ]}
-      portal='investor'
-    >
+    <AppShell breadcrumbs={[{ href: '/investor', label: 'Investor' }, { label: 'New transfer' }]} portal='investor'>
       <PageHeader
         actions={
           <Link className='btn btn-ghost btn-sm' href='/investor'>

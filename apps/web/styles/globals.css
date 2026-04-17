@@ -1,10 +1,8 @@
 @import 'tailwindcss';
 
 @theme {
-  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI',
-    Roboto, Helvetica, Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo,
-    Consolas, monospace;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
   --color-bg: #f7f7f5;
   --color-surface: #ffffff;
@@ -65,12 +63,9 @@
   --radius-xl: 16px;
 
   --shadow-xs: 0 1px 0 0 rgba(17, 17, 17, 0.04);
-  --shadow-sm: 0 1px 2px 0 rgba(17, 17, 17, 0.05),
-    0 1px 1px 0 rgba(17, 17, 17, 0.03);
-  --shadow-md: 0 2px 4px -1px rgba(17, 17, 17, 0.06),
-    0 4px 8px -2px rgba(17, 17, 17, 0.06);
-  --shadow-lg: 0 4px 8px -2px rgba(17, 17, 17, 0.08),
-    0 12px 24px -8px rgba(17, 17, 17, 0.12);
+  --shadow-sm: 0 1px 2px 0 rgba(17, 17, 17, 0.05), 0 1px 1px 0 rgba(17, 17, 17, 0.03);
+  --shadow-md: 0 2px 4px -1px rgba(17, 17, 17, 0.06), 0 4px 8px -2px rgba(17, 17, 17, 0.06);
+  --shadow-lg: 0 4px 8px -2px rgba(17, 17, 17, 0.08), 0 12px 24px -8px rgba(17, 17, 17, 0.12);
 }
 
 @layer base {
@@ -552,7 +547,9 @@
     font-size: 13px;
     color: var(--color-ink-900);
     outline: none;
-    transition: border-color 120ms ease, box-shadow 120ms ease;
+    transition:
+      border-color 120ms ease,
+      box-shadow 120ms ease;
     font-family: inherit;
   }
 
@@ -978,11 +975,7 @@
     width: 30px;
     height: 30px;
     border-radius: 8px;
-    background: linear-gradient(
-      135deg,
-      var(--color-brand-700),
-      var(--color-brand-500)
-    );
+    background: linear-gradient(135deg, var(--color-brand-700), var(--color-brand-500));
     color: white;
     display: grid;
     place-items: center;

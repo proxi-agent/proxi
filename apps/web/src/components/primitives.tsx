@@ -15,32 +15,18 @@ export function StepProgress({
 }) {
   return (
     <div className='step-progress'>
-      {steps.map((s) => (
-        <div
-          className={`step-progress-item ${s.state === 'done' ? 'done' : ''} ${
-            s.state === 'current' ? 'current' : ''
-          }`}
-          key={s.label}
-        >
+      {steps.map(s => (
+        <div className={`step-progress-item ${s.state === 'done' ? 'done' : ''} ${s.state === 'current' ? 'current' : ''}`} key={s.label}>
           <div className='step-progress-label'>{s.label}</div>
-          {s.value && (
-            <div className='step-progress-value'>{s.value}</div>
-          )}
+          {s.value && <div className='step-progress-value'>{s.value}</div>}
         </div>
       ))}
     </div>
   )
 }
 
-export function ConfidenceInterval({
-  high,
-  low,
-}: {
-  high: number
-  low: number
-}) {
-  const level: 'high' | 'low' | 'med' =
-    low >= 85 ? 'high' : low >= 65 ? 'med' : 'low'
+export function ConfidenceInterval({ high, low }: { high: number; low: number }) {
+  const level: 'high' | 'low' | 'med' = low >= 85 ? 'high' : low >= 65 ? 'med' : 'low'
   return (
     <span className='confidence-interval'>
       <span className='interval-bar'>
@@ -52,33 +38,21 @@ export function ConfidenceInterval({
           }}
         />
       </span>
-      <span className='num text-[12px] font-medium text-[color:var(--color-ink-800)]'>
+      <span className='num text-[12px] font-medium text-ink-800'>
         {low}–{high}%
       </span>
     </span>
   )
 }
 
-export function ActionBar({
-  actions,
-  count,
-  label,
-  onClear,
-}: {
-  actions: ReactNode
-  count: number
-  label?: string
-  onClear?: () => void
-}) {
+export function ActionBar({ actions, count, label, onClear }: { actions: ReactNode; count: number; label?: string; onClear?: () => void }) {
   return (
     <div className='action-bar'>
       <div className='flex items-center gap-3'>
         <span className='flex h-6 items-center justify-center rounded-full bg-white/12 px-2 text-[12px] font-semibold'>
           {count} selected
         </span>
-        {label && (
-          <span className='text-[12.5px] text-white/75'>{label}</span>
-        )}
+        {label && <span className='text-[12.5px] text-white/75'>{label}</span>}
       </div>
       <div className='flex items-center gap-1.5'>
         {actions}
@@ -93,15 +67,7 @@ export function ActionBar({
   )
 }
 
-export function RiskItem({
-  body,
-  severity = 'med',
-  title,
-}: {
-  body: ReactNode
-  severity?: 'high' | 'low' | 'med'
-  title: string
-}) {
+export function RiskItem({ body, severity = 'med', title }: { body: ReactNode; severity?: 'high' | 'low' | 'med'; title: string }) {
   const iconByLevel = {
     high: { color: 'var(--color-danger-700)', icon: 'alert-triangle' },
     low: { color: 'var(--color-ink-500)', icon: 'info' },

@@ -1,12 +1,12 @@
 import { AppShell } from '@/components/app-shell'
 import { Icon } from '@/components/icon'
 import { EmptyState, PageHeader, Panel } from '@/components/ui'
-import { PORTALS, type PortalId } from '@/lib/nav'
+import { type PortalId, PORTALS } from '@/lib/nav'
 
 function titleizeSegment(seg: string): string {
   return seg
     .split('-')
-    .map((s) => s[0]?.toUpperCase() + s.slice(1))
+    .map(s => s[0]?.toUpperCase() + s.slice(1))
     .join(' ')
 }
 
@@ -19,30 +19,14 @@ function findNavMatch(portal: PortalId, href: string) {
   return null
 }
 
-export function PortalPlaceholder({
-  portal,
-  slug,
-}: {
-  portal: PortalId
-  slug: string[]
-}) {
-  const href = `/${portal === 'investor' ? 'investor' : portal}/${slug.join(
-    '/',
-  )}`
+export function PortalPlaceholder({ portal, slug }: { portal: PortalId; slug: string[] }) {
+  const href = `/${portal === 'investor' ? 'investor' : portal}/${slug.join('/')}`
   const match = findNavMatch(portal, href)
-  const label = match
-    ? match.item.label
-    : slug.map(titleizeSegment).join(' · ')
+  const label = match ? match.item.label : slug.map(titleizeSegment).join(' · ')
   const section = match?.section.label
 
   return (
-    <AppShell
-      breadcrumbs={[
-        { label: section ?? 'Module' },
-        { label },
-      ]}
-      portal={portal}
-    >
+    <AppShell breadcrumbs={[{ label: section ?? 'Module' }, { label }]} portal={portal}>
       <PageHeader
         actions={
           <>
@@ -79,8 +63,7 @@ export function PortalPlaceholder({
           icon='kanban-square'
           title={`${label} workspace`}
         >
-          The production build of this module includes its own tables,
-          filters, detail views, and audit trail — all following the same
+          The production build of this module includes its own tables, filters, detail views, and audit trail — all following the same
           design system shown in the flagship screens.
         </EmptyState>
       </Panel>

@@ -1,6 +1,6 @@
+import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs'
 import type { OnModuleInit } from '@nestjs/common'
 import { Injectable, NotFoundException } from '@nestjs/common'
-import { SendMessageCommand, SQSClient } from '@aws-sdk/client-sqs'
 
 import { DatabaseService } from '../database/database.service.js'
 import { LedgerService } from '../ledger/ledger.service.js'
@@ -327,12 +327,7 @@ export class CasesService implements OnModuleInit {
     return Array.from(new Set(docs.map(doc => doc.trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b))
   }
 
-  private async appendEvent(
-    caseId: number,
-    eventType: string,
-    actor: string,
-    metadata: Record<string, unknown> = {},
-  ): Promise<void> {
+  private async appendEvent(caseId: number, eventType: string, actor: string, metadata: Record<string, unknown> = {}): Promise<void> {
     await this.database.query(
       `INSERT INTO transfer_case_events (case_id, event_type, actor, metadata)
        VALUES ($1, $2, $3, $4::jsonb)`,

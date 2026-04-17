@@ -266,25 +266,19 @@ export default function IssuerDividendsPage() {
         <StepProgress steps={payoutSteps} />
         <div className='mt-4 grid grid-cols-1 gap-3 md:grid-cols-3'>
           <div className='soft-box'>
-            <div className='text-[11px] font-semibold uppercase tracking-[0.06em] text-[color:var(--color-ink-500)]'>Next action</div>
-            <div className='mt-0.5 text-[14px] font-semibold text-[color:var(--color-ink-900)]'>Authorize disbursement</div>
-            <div className='mt-1 text-[12px] text-[color:var(--color-ink-600)]'>
-              CFO + Treasurer dual approval · due Jan 20 · $3.57M to settle.
-            </div>
+            <div className='text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-500'>Next action</div>
+            <div className='mt-0.5 text-[14px] font-semibold text-ink-900'>Authorize disbursement</div>
+            <div className='mt-1 text-[12px] text-ink-600'>CFO + Treasurer dual approval · due Jan 20 · $3.57M to settle.</div>
           </div>
           <div className='soft-box'>
-            <div className='text-[11px] font-semibold uppercase tracking-[0.06em] text-[color:var(--color-ink-500)]'>
-              Eligibility snapshot
-            </div>
-            <div className='mt-0.5 text-[14px] font-semibold text-[color:var(--color-ink-900)]'>19,210 holders · 19.87M shares</div>
-            <div className='mt-1 text-[12px] text-[color:var(--color-ink-600)]'>
-              Frozen at record date Jan 22 · ledger reconciliation 100%.
-            </div>
+            <div className='text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-500'>Eligibility snapshot</div>
+            <div className='mt-0.5 text-[14px] font-semibold text-ink-900'>19,210 holders · 19.87M shares</div>
+            <div className='mt-1 text-[12px] text-ink-600'>Frozen at record date Jan 22 · ledger reconciliation 100%.</div>
           </div>
           <div className='soft-box'>
-            <div className='text-[11px] font-semibold uppercase tracking-[0.06em] text-[color:var(--color-ink-500)]'>Straight-through</div>
-            <div className='mt-0.5 text-[14px] font-semibold text-[color:var(--color-ink-900)]'>18,982 / 19,210 · 98.8%</div>
-            <div className='mt-1 text-[12px] text-[color:var(--color-ink-600)]'>228 holders routed to exception queue for review.</div>
+            <div className='text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-500'>Straight-through</div>
+            <div className='mt-0.5 text-[14px] font-semibold text-ink-900'>18,982 / 19,210 · 98.8%</div>
+            <div className='mt-1 text-[12px] text-ink-600'>228 holders routed to exception queue for review.</div>
           </div>
         </div>
       </Panel>
@@ -371,7 +365,7 @@ export default function IssuerDividendsPage() {
                     <tr className='table-row-clickable' key={e.id}>
                       <td>
                         <div className='cell-primary'>{e.shareholder}</div>
-                        <div className='mono text-[11px] text-[color:var(--color-ink-500)]'>{e.id}</div>
+                        <div className='mono text-[11px] text-ink-500'>{e.id}</div>
                       </td>
                       <td>
                         <Badge tone='warning'>{e.kind}</Badge>
@@ -425,9 +419,9 @@ export default function IssuerDividendsPage() {
                           </td>
                           <td className='cell-muted'>
                             <span className='flex items-center gap-1.5'>
-                              <Icon className='text-[color:var(--color-ink-400)]' name='file-text' size={12} />
+                              <Icon className='text-ink-400' name='file-text' size={12} />
                               {f.source}
-                              <Icon className='text-[color:var(--color-ink-400)]' name='eye' size={12} />
+                              <Icon className='text-ink-400' name='eye' size={12} />
                             </span>
                           </td>
                         </tr>
@@ -435,15 +429,13 @@ export default function IssuerDividendsPage() {
                     </tbody>
                   </table>
                 </div>
-                <div className='mt-3 rounded-[8px] border border-[color:var(--color-warning-100)] bg-[color:var(--color-warning-100)]/50 px-3 py-2 text-[12.5px] text-[color:var(--color-warning-700)]'>
+                <div className='mt-3 rounded-md border border-warning-100 bg-warning-100/50 px-3 py-2 text-[12.5px] text-warning-700'>
                   <Icon className='mr-1 inline' name='alert-triangle' size={12} />
                   Fractional handling extracted at 74% · confirm cash-in-lieu vs. round-down before disbursement.
                 </div>
               </div>
               <div className='soft-box'>
-                <div className='text-[11px] font-semibold uppercase tracking-[0.06em] text-[color:var(--color-ink-500)]'>
-                  Supporting documents
-                </div>
+                <div className='text-[11px] font-semibold uppercase tracking-[0.06em] text-ink-500'>Supporting documents</div>
                 <ul className='mt-2 flex flex-col gap-2 text-[12.5px]'>
                   {[
                     { label: 'Board minutes · Jan 14, 2026', meta: '6 pages · signed' },
@@ -451,16 +443,13 @@ export default function IssuerDividendsPage() {
                     { label: 'Dividend calculation', meta: 'XLSX · AI-matched' },
                     { label: 'Prior 10-Q', meta: 'SEC · cross-referenced' },
                   ].map(d => (
-                    <li
-                      className='flex items-center gap-2 rounded-[6px] border border-[color:var(--color-line)] bg-white px-2.5 py-2'
-                      key={d.label}
-                    >
-                      <Icon className='text-[color:var(--color-ink-500)]' name='file-text' size={13} />
+                    <li className='flex items-center gap-2 rounded-sm border border-line bg-white px-2.5 py-2' key={d.label}>
+                      <Icon className='text-ink-500' name='file-text' size={13} />
                       <div className='flex-1 min-w-0'>
-                        <div className='truncate text-[13px] font-semibold text-[color:var(--color-ink-900)]'>{d.label}</div>
-                        <div className='text-[11px] text-[color:var(--color-ink-500)]'>{d.meta}</div>
+                        <div className='truncate text-[13px] font-semibold text-ink-900'>{d.label}</div>
+                        <div className='text-[11px] text-ink-500'>{d.meta}</div>
                       </div>
-                      <Icon className='text-[color:var(--color-ink-400)]' name='eye' size={12} />
+                      <Icon className='text-ink-400' name='eye' size={12} />
                     </li>
                   ))}
                 </ul>
@@ -473,22 +462,20 @@ export default function IssuerDividendsPage() {
           </Panel>
 
           <Panel subtitle='Signature and approval trail for this declaration' title='Officer signatures'>
-            <ul className='divide-y divide-[color:var(--color-line)]'>
+            <ul className='divide-y divide-line'>
               {officers.map(o => (
                 <li className='flex items-center justify-between gap-3 py-3' key={o.name}>
                   <div className='flex items-center gap-3'>
                     <div
                       className={`flex h-8 w-8 items-center justify-center rounded-full ${
-                        o.signed
-                          ? 'bg-[color:var(--color-positive-100)] text-[color:var(--color-positive-700)]'
-                          : 'bg-[color:var(--color-surface-sunken)] text-[color:var(--color-ink-500)]'
+                        o.signed ? 'bg-positive-100 text-positive-700' : 'bg-surface-sunken text-ink-500'
                       }`}
                     >
                       <Icon name={o.signed ? 'badge-check' : 'clock'} size={16} />
                     </div>
                     <div>
-                      <div className='text-[13px] font-semibold text-[color:var(--color-ink-900)]'>{o.name}</div>
-                      <div className='text-[11.5px] text-[color:var(--color-ink-500)]'>{o.role}</div>
+                      <div className='text-[13px] font-semibold text-ink-900'>{o.name}</div>
+                      <div className='text-[11.5px] text-ink-500'>{o.role}</div>
                     </div>
                   </div>
                   <Badge tone={o.signed ? 'positive' : 'warning'}>{o.when}</Badge>
@@ -508,15 +495,15 @@ export default function IssuerDividendsPage() {
               {sustainability.map(s => (
                 <li className='flex items-center justify-between gap-3' key={s.label}>
                   <div>
-                    <div className='text-[13px] font-semibold text-[color:var(--color-ink-900)]'>{s.label}</div>
-                    <div className='text-[11.5px] text-[color:var(--color-ink-500)]'>{s.sub}</div>
+                    <div className='text-[13px] font-semibold text-ink-900'>{s.label}</div>
+                    <div className='text-[11.5px] text-ink-500'>{s.sub}</div>
                   </div>
                   <Badge tone={s.tone}>{s.value}</Badge>
                 </li>
               ))}
             </ul>
-            <div className='mt-3 rounded-[8px] border border-[color:var(--color-brand-100)] bg-[color:var(--color-brand-50)] px-3 py-2 text-[12.5px] text-[color:var(--color-brand-900)]'>
-              <Icon className='mr-1 inline text-[color:var(--color-brand-700)]' name='sparkles' size={12} />
+            <div className='mt-3 rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-[12.5px] text-brand-900'>
+              <Icon className='mr-1 inline text-brand-700' name='sparkles' size={12} />
               No sustainability flags. Dividend is covered 2.8× by TTM net income.
             </div>
           </Panel>
@@ -528,23 +515,23 @@ export default function IssuerDividendsPage() {
           >
             <ul className='flex flex-col gap-2 text-[13px]'>
               <li className='flex items-center justify-between'>
-                <span className='text-[color:var(--color-ink-700)]'>Auto-enrolled</span>
-                <span className='num font-semibold text-[color:var(--color-ink-900)]'>3,802</span>
+                <span className='text-ink-700'>Auto-enrolled</span>
+                <span className='num font-semibold text-ink-900'>3,802</span>
               </li>
               <li className='flex items-center justify-between'>
-                <span className='text-[color:var(--color-ink-700)]'>Opted-in this quarter</span>
-                <span className='num font-semibold text-[color:var(--color-ink-900)]'>+610</span>
+                <span className='text-ink-700'>Opted-in this quarter</span>
+                <span className='num font-semibold text-ink-900'>+610</span>
               </li>
               <li className='flex items-center justify-between'>
-                <span className='text-[color:var(--color-ink-700)]'>Shares to be reinvested</span>
-                <span className='num font-semibold text-[color:var(--color-ink-900)]'>~22,412</span>
+                <span className='text-ink-700'>Shares to be reinvested</span>
+                <span className='num font-semibold text-ink-900'>~22,412</span>
               </li>
               <li className='flex items-center justify-between'>
-                <span className='text-[color:var(--color-ink-700)]'>Reinvestment price (est.)</span>
-                <span className='num font-semibold text-[color:var(--color-ink-900)]'>$82.44 VWAP</span>
+                <span className='text-ink-700'>Reinvestment price (est.)</span>
+                <span className='num font-semibold text-ink-900'>$82.44 VWAP</span>
               </li>
               <li className='flex items-center justify-between'>
-                <span className='text-[color:var(--color-ink-700)]'>Fractional handling</span>
+                <span className='text-ink-700'>Fractional handling</span>
                 <Badge tone='warning'>Cash-in-lieu</Badge>
               </li>
             </ul>

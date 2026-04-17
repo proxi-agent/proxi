@@ -2,15 +2,7 @@ import type { ReactNode } from 'react'
 
 import { Icon } from '@/components/icon'
 
-export type StatusTone =
-  | 'accent'
-  | 'brand'
-  | 'danger'
-  | 'info'
-  | 'neutral'
-  | 'positive'
-  | 'violet'
-  | 'warning'
+export type StatusTone = 'accent' | 'brand' | 'danger' | 'info' | 'neutral' | 'positive' | 'violet' | 'warning'
 
 export function Badge({
   children,
@@ -26,9 +18,7 @@ export function Badge({
   tone?: StatusTone
 }) {
   return (
-    <span
-      className={`badge ${outline ? 'badge-outline' : `badge-${tone}`}`}
-    >
+    <span className={`badge ${outline ? 'badge-outline' : `badge-${tone}`}`}>
       {dot && <span className='badge-dot' />}
       {icon && <Icon name={icon} size={11} />}
       {children}
@@ -74,19 +64,13 @@ export function StatusPill({
 }
 
 export function Confidence({ value }: { value: number }) {
-  const level: 'high' | 'low' | 'med' =
-    value >= 85 ? 'high' : value >= 65 ? 'med' : 'low'
+  const level: 'high' | 'low' | 'med' = value >= 85 ? 'high' : value >= 65 ? 'med' : 'low'
   return (
     <span className='confidence'>
       <span className='confidence-bar'>
-        <span
-          className={`confidence-fill ${level}`}
-          style={{ width: `${Math.min(100, Math.max(4, value))}%` }}
-        />
+        <span className={`confidence-fill ${level}`} style={{ width: `${Math.min(100, Math.max(4, value))}%` }} />
       </span>
-      <span className='num font-medium text-[color:var(--color-ink-800)]'>
-        {value}%
-      </span>
+      <span className='num font-medium text-ink-800'>{value}%</span>
     </span>
   )
 }
@@ -148,8 +132,8 @@ export function Metric({
                 trend === 'up'
                   ? 'trend-up flex items-center gap-1'
                   : trend === 'down'
-                  ? 'trend-down flex items-center gap-1'
-                  : 'flex items-center gap-1'
+                    ? 'trend-down flex items-center gap-1'
+                    : 'flex items-center gap-1'
               }
             >
               {trend === 'up' && <Icon name='trending-up' size={12} />}
@@ -181,12 +165,7 @@ export function PageHeader({
     <header className='page-header'>
       <div>
         {breadcrumb}
-        {eyebrow &&
-          (typeof eyebrow === 'string' ? (
-            <div className='page-eyebrow'>{eyebrow}</div>
-          ) : (
-            <div className='mb-1'>{eyebrow}</div>
-          ))}
+        {eyebrow && (typeof eyebrow === 'string' ? <div className='page-eyebrow'>{eyebrow}</div> : <div className='mb-1'>{eyebrow}</div>)}
         <h1 className='page-title'>{title}</h1>
         {subtitle && <p className='page-subtitle'>{subtitle}</p>}
       </div>
@@ -195,41 +174,20 @@ export function PageHeader({
   )
 }
 
-export function Tabs({
-  items,
-  value,
-}: {
-  items: Array<{ count?: number | string; id: string; label: string }>
-  value: string
-}) {
+export function Tabs({ items, value }: { items: Array<{ count?: number | string; id: string; label: string }>; value: string }) {
   return (
     <div className='tabs'>
-      {items.map((tab) => (
-        <div
-          className={`tab ${tab.id === value ? 'active' : ''}`}
-          key={tab.id}
-        >
+      {items.map(tab => (
+        <div className={`tab ${tab.id === value ? 'active' : ''}`} key={tab.id}>
           {tab.label}
-          {tab.count !== undefined && (
-            <span className='tab-count num'>{tab.count}</span>
-          )}
+          {tab.count !== undefined && <span className='tab-count num'>{tab.count}</span>}
         </div>
       ))}
     </div>
   )
 }
 
-export function Chip({
-  active,
-  children,
-  count,
-  icon,
-}: {
-  active?: boolean
-  children: ReactNode
-  count?: number
-  icon?: string
-}) {
+export function Chip({ active, children, count, icon }: { active?: boolean; children: ReactNode; count?: number; icon?: string }) {
   return (
     <span className={`chip ${active ? 'active' : ''}`}>
       {icon && <Icon name={icon} size={12} />}
@@ -252,15 +210,11 @@ export function EmptyState({
 }) {
   return (
     <div className='empty'>
-      <div className='mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[color:var(--color-surface)] text-[color:var(--color-ink-500)] border border-[color:var(--color-line)]'>
+      <div className='mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink-500 border border-line'>
         <Icon name={icon} size={18} />
       </div>
       <div className='empty-title'>{title}</div>
-      {children && (
-        <div className='mt-1 text-[13px] text-[color:var(--color-ink-500)] max-w-md mx-auto'>
-          {children}
-        </div>
-      )}
+      {children && <div className='mt-1 text-[13px] text-ink-500 max-w-md mx-auto'>{children}</div>}
       {action && <div className='mt-3 flex justify-center'>{action}</div>}
     </div>
   )
@@ -281,7 +235,7 @@ export function Avatar({
 }) {
   const initials = name
     .split(' ')
-    .map((p) => p[0])
+    .map(p => p[0])
     .slice(0, 2)
     .join('')
     .toUpperCase()

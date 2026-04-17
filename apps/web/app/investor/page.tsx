@@ -3,12 +3,9 @@ import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { ProxiAssistant } from '@/components/assistant'
 import { Icon } from '@/components/icon'
-import { HoldingsTable, type Holding } from '@/components/investor/holdings-table'
+import { type Holding, HoldingsTable } from '@/components/investor/holdings-table'
 import { InboxTabs } from '@/components/investor/inbox-tabs'
-import {
-  RequestTracker,
-  type RequestTrack,
-} from '@/components/investor/request-tracker'
+import { type RequestTrack, RequestTracker } from '@/components/investor/request-tracker'
 import { Badge, Metric, PageHeader, Panel } from '@/components/ui'
 
 const holdings: Holding[] = [
@@ -64,8 +61,7 @@ const requests: RequestTrack[] = [
     detail: 'To Fidelity · 500 shares MRDN · submitted Jan 18',
     eta: '1 business day',
     id: 'TR-120458',
-    notes:
-      'Proxi flagged one signature variance · W-9 still needed to unblock straight-through.',
+    notes: 'Proxi flagged one signature variance · W-9 still needed to unblock straight-through.',
     title: 'Broker transfer · DRS → Fidelity',
     urgency: 'high',
   },
@@ -74,8 +70,7 @@ const requests: RequestTrack[] = [
     detail: 'Teagan Biosciences ESPP lot #3 · basis reconciliation',
     eta: '< 2 hours',
     id: 'SR-222188',
-    notes:
-      'Proxi is matching broker confirmation to ledger lots. No action needed from you.',
+    notes: 'Proxi is matching broker confirmation to ledger lots. No action needed from you.',
     title: 'Cost basis adjustment',
   },
 ]
@@ -102,12 +97,7 @@ export default function InvestorDashboard() {
       />
 
       <div className='mb-6 grid grid-cols-1 gap-3 md:grid-cols-4'>
-        <Metric
-          delta='+3.2% vs. last quarter'
-          label='Portfolio value'
-          trend='up'
-          value='$174,373.80'
-        />
+        <Metric delta='+3.2% vs. last quarter' label='Portfolio value' trend='up' value='$174,373.80' />
         <Metric helper='Across 4 issuers' label='Total shares' value='4,720' />
         <Metric helper='Q4 2025 + Q1 2026' label='Dividends YTD' value='$1,862.40' />
         <Metric helper='1 awaiting action' label='Open requests' value='2' />
@@ -118,9 +108,7 @@ export default function InvestorDashboard() {
           <Panel
             actions={
               <>
-                <span className='text-[11.5px] text-[color:var(--color-ink-500)]'>
-                  Select rows to act on them
-                </span>
+                <span className='text-[11.5px] text-ink-500'>Select rows to act on them</span>
                 <button className='btn btn-ghost btn-sm' type='button'>
                   <Icon name='filter' size={13} />
                   Filter
@@ -131,17 +119,14 @@ export default function InvestorDashboard() {
             subtitle='Positions of record on the Proxi ledger. Select one or more to transfer, sell, or ask Proxi.'
             title='Holdings'
           >
-            <div className='px-[1px] pb-[1px]'>
+            <div className='px-px pb-px'>
               <HoldingsTable holdings={holdings} />
             </div>
           </Panel>
 
           <Panel
             actions={
-              <Link
-                className='btn btn-ghost btn-sm'
-                href='/investor/transfer/new'
-              >
+              <Link className='btn btn-ghost btn-sm' href='/investor/transfer/new'>
                 New request
                 <Icon name='arrow-right' size={13} />
               </Link>
@@ -150,7 +135,7 @@ export default function InvestorDashboard() {
             title='Request status'
           >
             <div className='flex flex-col gap-3'>
-              {requests.map((r) => (
+              {requests.map(r => (
                 <RequestTracker key={r.id} request={r} />
               ))}
             </div>
@@ -212,7 +197,7 @@ export default function InvestorDashboard() {
             subtitle='Guided intake flows — Proxi collects everything needed for straight-through processing.'
             title='Start a workflow'
           >
-            <ul className='divide-y divide-[color:var(--color-line)]'>
+            <ul className='divide-y divide-line'>
               {[
                 {
                   blurb: 'DRS → broker · guided form · ~5 min',
@@ -244,28 +229,17 @@ export default function InvestorDashboard() {
                   icon: 'file-text',
                   label: 'Tax & compliance forms',
                 },
-              ].map((w) => (
+              ].map(w => (
                 <li key={w.label}>
-                  <Link
-                    className='flex items-center gap-3 px-4 py-3 hover:bg-[color:var(--color-surface-2)]'
-                    href={w.href}
-                  >
-                    <div className='flex h-8 w-8 items-center justify-center rounded-[6px] bg-[color:var(--color-brand-50)] text-[color:var(--color-brand-700)]'>
+                  <Link className='flex items-center gap-3 px-4 py-3 hover:bg-surface-2' href={w.href}>
+                    <div className='flex h-8 w-8 items-center justify-center rounded-sm bg-brand-50 text-brand-700'>
                       <Icon name={w.icon} size={15} />
                     </div>
                     <div className='min-w-0 flex-1'>
-                      <div className='text-[13px] font-semibold text-[color:var(--color-ink-900)]'>
-                        {w.label}
-                      </div>
-                      <div className='text-[11.5px] text-[color:var(--color-ink-500)]'>
-                        {w.blurb}
-                      </div>
+                      <div className='text-[13px] font-semibold text-ink-900'>{w.label}</div>
+                      <div className='text-[11.5px] text-ink-500'>{w.blurb}</div>
                     </div>
-                    <Icon
-                      className='text-[color:var(--color-ink-400)]'
-                      name='chevron-right'
-                      size={15}
-                    />
+                    <Icon className='text-ink-400' name='chevron-right' size={15} />
                   </Link>
                 </li>
               ))}
@@ -283,9 +257,9 @@ export default function InvestorDashboard() {
                 { label: 'Government ID · verified', status: 'Valid to 2028', tone: 'positive' as const },
                 { label: 'Medallion guarantee', status: 'Recent · 2025-Q4', tone: 'positive' as const },
                 { label: 'ACH instructions', status: 'Verified', tone: 'positive' as const },
-              ].map((d) => (
+              ].map(d => (
                 <li className='flex items-center justify-between' key={d.label}>
-                  <span className='text-[color:var(--color-ink-800)]'>{d.label}</span>
+                  <span className='text-ink-800'>{d.label}</span>
                   <Badge tone={d.tone}>{d.status}</Badge>
                 </li>
               ))}

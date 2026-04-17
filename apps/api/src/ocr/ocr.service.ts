@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common'
 import { DetectDocumentTextCommand, TextractClient } from '@aws-sdk/client-textract'
+import { Injectable } from '@nestjs/common'
 
 type OcrDocumentInput = {
   storageBucket?: string

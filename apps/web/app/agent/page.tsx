@@ -1,5 +1,5 @@
-import { AppShell } from '@/components/app-shell'
 import { type AgentCase, Workbench } from '@/components/agent/workbench'
+import { AppShell } from '@/components/app-shell'
 import { Icon } from '@/components/icon'
 import { Metric, PageHeader } from '@/components/ui'
 
@@ -159,8 +159,7 @@ const cases: AgentCase[] = [
       status: 'passed',
       when: 'Jan 18 · 11:12am',
     },
-    overview:
-      'Straightforward DRS-to-DRS re-registration into a trust. All documents clean; trustee certification included.',
+    overview: 'Straightforward DRS-to-DRS re-registration into a trust. All documents clean; trustee certification included.',
     risks: [
       {
         body: 'Trust effective date (2021) confirmed against grantor letter.',
@@ -170,12 +169,8 @@ const cases: AgentCase[] = [
     ],
     shareholder: 'Theodore F. Nguyen · SH-10284',
     shares: '200',
-    suggestedFocus: [
-      'Confirm trustee names against signature block',
-      'Post straight through after a final sanity check',
-    ],
-    summary:
-      'No significant risk flags. Eligible for same-day posting pending a 10-second sanity check.',
+    suggestedFocus: ['Confirm trustee names against signature block', 'Post straight through after a final sanity check'],
+    summary: 'No significant risk flags. Eligible for same-day posting pending a 10-second sanity check.',
     title: 'Re-registration into trust',
     urgency: 'med',
     value: '$7,948.00',
@@ -218,8 +213,7 @@ const cases: AgentCase[] = [
       status: 'passed',
       when: 'Jan 17 · 3:22pm',
     },
-    overview:
-      'DRIP enrollment with ACH bank letter. Routing/account digits partially obscured; verify the last 4.',
+    overview: 'DRIP enrollment with ACH bank letter. Routing/account digits partially obscured; verify the last 4.',
     risks: [
       {
         body: 'Last four digits of the account legible but the middle digits are partially redacted. Confirm with the bank letter image.',
@@ -233,8 +227,7 @@ const cases: AgentCase[] = [
       'Zoom into the bank letter header to confirm ACH digits',
       'Default to reinvest in-full unless holder specified partial',
     ],
-    summary:
-      'Enrollment looks fine but the ACH letter has a smudge on the account digits. Cross-reference the masked deposit on file.',
+    summary: 'Enrollment looks fine but the ACH letter has a smudge on the account digits. Cross-reference the masked deposit on file.',
     title: 'DRIP enrollment · ACH setup',
     urgency: 'med',
     value: '$26,898.00',
@@ -243,9 +236,7 @@ const cases: AgentCase[] = [
     assignee: { initials: 'MH', name: 'Maya H.' },
     confHigh: 96,
     confLow: 92,
-    docs: [
-      { kind: 'Cert request', label: 'Cert-req.pdf', pages: 1, state: 'ok' },
-    ],
+    docs: [{ kind: 'Cert request', label: 'Cert-req.pdf', pages: 1, state: 'ok' }],
     due: 'Jan 24 · 5:00pm',
     extraction: [
       {
@@ -266,10 +257,7 @@ const cases: AgentCase[] = [
     risks: [],
     shareholder: 'Okoye Holdings LLC · SH-55120',
     shares: '1,000',
-    suggestedFocus: [
-      'Verify registered address on cert face',
-      'Queue for mail-room batch',
-    ],
+    suggestedFocus: ['Verify registered address on cert face', 'Queue for mail-room batch'],
     summary: 'Straight-through eligible. Queue for next mail batch.',
     title: 'Issue physical certificate',
     urgency: 'low',
@@ -303,30 +291,10 @@ export default function AgentWorkbenchPage() {
       />
 
       <div className='mb-5 grid grid-cols-1 gap-3 md:grid-cols-4'>
-        <Metric
-          helper='18 assigned to you'
-          label='Active queue'
-          value={cases.length.toString().padStart(2, '0')}
-        />
-        <Metric
-          delta='–28 min vs. 30d avg'
-          helper='Target 60m'
-          label='Median review time'
-          trend='up'
-          value='42m'
-        />
-        <Metric
-          delta='+3.2 pts'
-          helper='7-day moving avg'
-          label='Straight-through rate'
-          trend='up'
-          value='86.4%'
-        />
-        <Metric
-          helper='1 high, 2 med today'
-          label='Risk-flagged'
-          value='3'
-        />
+        <Metric helper='18 assigned to you' label='Active queue' value={cases.length.toString().padStart(2, '0')} />
+        <Metric delta='–28 min vs. 30d avg' helper='Target 60m' label='Median review time' trend='up' value='42m' />
+        <Metric delta='+3.2 pts' helper='7-day moving avg' label='Straight-through rate' trend='up' value='86.4%' />
+        <Metric helper='1 high, 2 med today' label='Risk-flagged' value='3' />
       </div>
 
       <Workbench cases={cases} />

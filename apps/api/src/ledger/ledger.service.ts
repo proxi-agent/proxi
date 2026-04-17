@@ -57,13 +57,7 @@ export class LedgerService {
     return mapLedgerEvent(result.rows[0])
   }
 
-  async transfer(
-    securityId: string,
-    fromHolderId: string,
-    toHolderId: string,
-    quantity: number,
-    caseId?: number,
-  ): Promise<LedgerEvent> {
+  async transfer(securityId: string, fromHolderId: string, toHolderId: string, quantity: number, caseId?: number): Promise<LedgerEvent> {
     const result = await this.database.query<LedgerEventRow>(
       `INSERT INTO ledger_events (type, case_id, security_id, from_holder_id, to_holder_id, quantity, timestamp)
        VALUES ('TRANSFER', $1, $2, $3, $4, $5, NOW())

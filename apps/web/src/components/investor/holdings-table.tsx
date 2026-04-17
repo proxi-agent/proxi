@@ -19,11 +19,7 @@ export type Holding = {
   unrealized: string
 }
 
-export function HoldingsTable({
-  holdings,
-}: {
-  holdings: Holding[]
-}) {
+export function HoldingsTable({ holdings }: { holdings: Holding[] }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const toggle = (cusip: string) => {
@@ -35,18 +31,14 @@ export function HoldingsTable({
 
   const toggleAll = () => {
     if (selected.size === holdings.length) setSelected(new Set())
-    else setSelected(new Set(holdings.map((h) => h.cusip)))
+    else setSelected(new Set(holdings.map(h => h.cusip)))
   }
 
   const summary = useMemo(() => {
     if (selected.size === 0) return null
-    const rows = holdings.filter((h) => selected.has(h.cusip))
-    const sharesSum = rows
-      .map((r) => Number(r.shares.replace(/,/g, '')))
-      .reduce((a, b) => a + b, 0)
-    return `${sharesSum.toLocaleString()} shares · ${rows.length} issuer${
-      rows.length > 1 ? 's' : ''
-    }`
+    const rows = holdings.filter(h => selected.has(h.cusip))
+    const sharesSum = rows.map(r => Number(r.shares.replace(/,/g, ''))).reduce((a, b) => a + b, 0)
+    return `${sharesSum.toLocaleString()} shares · ${rows.length} issuer${rows.length > 1 ? 's' : ''}`
   }, [holdings, selected])
 
   return (
@@ -58,9 +50,7 @@ export function HoldingsTable({
               <th style={{ width: 36 }}>
                 <input
                   aria-label='Select all'
-                  checked={
-                    selected.size > 0 && selected.size === holdings.length
-                  }
+                  checked={selected.size > 0 && selected.size === holdings.length}
                   onChange={toggleAll}
                   type='checkbox'
                 />
@@ -75,26 +65,16 @@ export function HoldingsTable({
             </tr>
           </thead>
           <tbody>
-            {holdings.map((h) => {
+            {holdings.map(h => {
               const isSelected = selected.has(h.cusip)
               return (
-                <tr
-                  className={`table-row-clickable ${
-                    isSelected ? 'bg-[color:var(--color-surface-2)]' : ''
-                  }`}
-                  key={h.cusip}
-                  onClick={() => toggle(h.cusip)}
-                >
-                  <td onClick={(e) => e.stopPropagation()}>
-                    <input
-                      checked={isSelected}
-                      onChange={() => toggle(h.cusip)}
-                      type='checkbox'
-                    />
+                <tr className={`table-row-clickable ${isSelected ? 'bg-surface-2' : ''}`} key={h.cusip} onClick={() => toggle(h.cusip)}>
+                  <td onClick={e => e.stopPropagation()}>
+                    <input checked={isSelected} onChange={() => toggle(h.cusip)} type='checkbox' />
                   </td>
                   <td>
                     <div className='cell-primary'>{h.issuer}</div>
-                    <div className='text-[11.5px] text-[color:var(--color-ink-500)] mono'>
+                    <div className='text-[11.5px] text-ink-500 mono'>
                       {h.ticker} · {h.cusip}
                     </div>
                   </td>
@@ -104,13 +84,7 @@ export function HoldingsTable({
                   <td className='cell-num num'>{h.shares}</td>
                   <td className='cell-num num cell-muted'>{h.basis}</td>
                   <td className='cell-num num cell-primary'>{h.market}</td>
-                  <td
-                    className={`cell-num num ${
-                      h.unrealized.startsWith('+') ? 'trend-up' : 'trend-down'
-                    }`}
-                  >
-                    {h.unrealized}
-                  </td>
+                  <td className={`cell-num num ${h.unrealized.startsWith('+') ? 'trend-up' : 'trend-down'}`}>{h.unrealized}</td>
                   <td>
                     {h.restriction ? (
                       <Badge icon='lock' tone='warning'>

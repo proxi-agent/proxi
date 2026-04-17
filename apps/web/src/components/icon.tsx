@@ -131,15 +131,7 @@ const ICONS: Record<string, LucideIcon> = {
   x: X,
 }
 
-export function Icon({
-  name,
-  size = 16,
-  className,
-}: {
-  name: string
-  size?: number
-  className?: string
-}) {
+export function Icon({ name, size = 16, className }: { name: string; size?: number; className?: string }) {
   const C = ICONS[name] ?? CircleDot
   return <C className={className} size={size} strokeWidth={1.75} />
 }

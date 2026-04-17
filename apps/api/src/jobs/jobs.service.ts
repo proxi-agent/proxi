@@ -1,9 +1,9 @@
 import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { Injectable } from '@nestjs/common'
 
+import { TransferAiService } from '../ai/transfer-ai.service.js'
 import { CasesService } from '../cases/cases.service.js'
 import { OcrService } from '../ocr/ocr.service.js'
-import { TransferAiService } from '../ai/transfer-ai.service.js'
 
 @Injectable()
 export class JobsService implements OnModuleInit, OnModuleDestroy {

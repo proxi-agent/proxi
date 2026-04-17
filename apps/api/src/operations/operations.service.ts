@@ -111,9 +111,7 @@ export class OperationsService {
       timestamp: new Date(event.timestamp),
     }))
 
-    return [...mappedCaseEvents, ...mappedLedgerEvents]
-      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
-      .slice(0, 200)
+    return [...mappedCaseEvents, ...mappedLedgerEvents].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()).slice(0, 200)
   }
 
   getExceptions(): ExceptionItem[] {
@@ -295,5 +293,4 @@ export class OperationsService {
       },
     ]
   }
-
 }

@@ -5,12 +5,7 @@ import { usePathname } from 'next/navigation'
 import type { ReactNode } from 'react'
 
 import { Icon } from '@/components/icon'
-import {
-  PORTAL_META,
-  PORTAL_ORDER,
-  PORTALS,
-  type PortalId,
-} from '@/lib/nav'
+import { PORTAL_META, PORTAL_ORDER, type PortalId, PORTALS } from '@/lib/nav'
 
 function isItemActive(pathname: string, href: string): boolean {
   if (href === pathname) return true
@@ -35,23 +30,17 @@ function NavSidebar({ portal }: { portal: PortalId }) {
       </div>
 
       <div className='flex-1 overflow-y-auto py-2'>
-        {config.sections.map((section) => (
+        {config.sections.map(section => (
           <div key={section.label}>
             <div className='nav-section'>{section.label}</div>
             <div className='nav-list'>
-              {section.items.map((item) => {
+              {section.items.map(item => {
                 const active = isItemActive(pathname, item.href)
                 return (
-                  <Link
-                    className={`nav-item ${active ? 'active' : ''}`}
-                    href={item.href}
-                    key={item.href}
-                  >
+                  <Link className={`nav-item ${active ? 'active' : ''}`} href={item.href} key={item.href}>
                     <Icon name={item.icon} size={15} />
                     <span>{item.label}</span>
-                    {item.badge !== undefined && (
-                      <span className='nav-item-badge'>{item.badge}</span>
-                    )}
+                    {item.badge !== undefined && <span className='nav-item-badge'>{item.badge}</span>}
                   </Link>
                 )
               })}
@@ -62,15 +51,11 @@ function NavSidebar({ portal }: { portal: PortalId }) {
 
       <div className='portal-switch'>
         <span className='portal-switch-label'>Switch portal</span>
-        {PORTAL_ORDER.map((p) => {
+        {PORTAL_ORDER.map(p => {
           const href = p === 'investor' ? '/investor' : `/${p}`
           const active = portal === p
           return (
-            <Link
-              className={`portal-switch-item ${active ? 'active' : ''}`}
-              href={href}
-              key={p}
-            >
+            <Link className={`portal-switch-item ${active ? 'active' : ''}`} href={href} key={p}>
               <span className={`portal-dot ${p}`} />
               <span>{PORTAL_META[p].name}</span>
             </Link>
@@ -81,34 +66,21 @@ function NavSidebar({ portal }: { portal: PortalId }) {
   )
 }
 
-function TopBar({
-  breadcrumbs,
-  portal,
-}: {
-  breadcrumbs?: Array<{ label: string; href?: string }>
-  portal: PortalId
-}) {
+function TopBar({ breadcrumbs, portal }: { breadcrumbs?: Array<{ label: string; href?: string }>; portal: PortalId }) {
   const config = PORTALS[portal]
   return (
     <div className='app-topbar'>
-      <div className='flex items-center gap-3 text-[12.5px] text-[color:var(--color-ink-500)]'>
-        <span className='font-semibold text-[color:var(--color-ink-700)]'>
-          {PORTAL_META[portal].name}
-        </span>
+      <div className='flex items-center gap-3 text-[12.5px] text-ink-500'>
+        <span className='font-semibold text-ink-700'>{PORTAL_META[portal].name}</span>
         {breadcrumbs?.map((crumb, idx) => (
           <span className='flex items-center gap-3' key={`${crumb.label}-${idx}`}>
             <Icon name='chevron-right' size={13} />
             {crumb.href ? (
-              <Link
-                className='hover:text-[color:var(--color-ink-800)]'
-                href={crumb.href}
-              >
+              <Link className='hover:text-ink-800' href={crumb.href}>
                 {crumb.label}
               </Link>
             ) : (
-              <span className='text-[color:var(--color-ink-800)]'>
-                {crumb.label}
-              </span>
+              <span className='text-ink-800'>{crumb.label}</span>
             )}
           </span>
         ))}
@@ -119,10 +91,7 @@ function TopBar({
           <span className='search-icon'>
             <Icon name='search' size={14} />
           </span>
-          <input
-            className='input h-[32px]'
-            placeholder='Search accounts, cases, CUSIP…'
-          />
+          <input className='input h-[32px]' placeholder='Search accounts, cases, CUSIP…' />
         </div>
         <button className='btn btn-secondary btn-sm' type='button'>
           <Icon name='sparkles' size={14} />
@@ -135,18 +104,16 @@ function TopBar({
         <button className='btn btn-ghost btn-icon btn-sm' type='button'>
           <Icon name='settings' size={15} />
         </button>
-        <div className='flex items-center gap-2 pl-2 border-l border-[color:var(--color-line)]'>
+        <div className='flex items-center gap-2 pl-2 border-l border-line'>
           <div
             aria-hidden
-            className='flex h-7 w-7 items-center justify-center rounded-full bg-[color:var(--color-ink-900)] text-[11px] font-semibold text-white'
+            className='flex h-7 w-7 items-center justify-center rounded-full bg-ink-900 text-[11px] font-semibold text-white'
           >
             {config.user.initials}
           </div>
           <div className='hidden flex-col leading-tight md:flex'>
-            <span className='text-[12.5px] font-semibold text-[color:var(--color-ink-900)]'>
-              {config.user.name}
-            </span>
-            <span className='text-[11px] text-[color:var(--color-ink-500)]'>
+            <span className='text-[12.5px] font-semibold text-ink-900'>{config.user.name}</span>
+            <span className='text-[11px] text-ink-500'>
               {config.role}
               {config.company ? ` · ${config.company}` : ''}
             </span>

@@ -8,14 +8,7 @@ import { Icon } from '@/components/icon'
 import { StepProgress } from '@/components/primitives'
 import { Badge, Panel } from '@/components/ui'
 
-type StepId =
-  | 'confirm'
-  | 'destination'
-  | 'documents'
-  | 'holding'
-  | 'intent'
-  | 'kyc'
-  | 'success'
+type StepId = 'confirm' | 'destination' | 'documents' | 'holding' | 'intent' | 'kyc' | 'success'
 
 type WizardStep = {
   id: StepId
@@ -140,17 +133,12 @@ export function GuidedIntake() {
   })
   const [idVerified, setIdVerified] = useState(false)
 
-  const stepIdx = STEPS.findIndex((s) => s.id === step)
-  const intentMeta = intents.find((i) => i.id === intent)!
+  const stepIdx = STEPS.findIndex(s => s.id === step)
+  const intentMeta = intents.find(i => i.id === intent)!
 
   const progressSteps = STEPS.slice(0, 6).map((s, idx) => ({
     label: s.label,
-    state:
-      idx < stepIdx
-        ? ('done' as const)
-        : idx === stepIdx
-        ? ('current' as const)
-        : ('upcoming' as const),
+    state: idx < stepIdx ? ('done' as const) : idx === stepIdx ? ('current' as const) : ('upcoming' as const),
     value: s.sub,
   }))
 
@@ -158,47 +146,19 @@ export function GuidedIntake() {
     if (step === 'intent') return Boolean(intent)
     if (step === 'holding') return Boolean(holding && Number(shares) > 0)
     if (step === 'destination') return Boolean(broker && account)
-    if (step === 'documents')
-      return (
-        uploaded['stock-power'] && uploaded.medallion && uploaded.w9
-      )
+    if (step === 'documents') return uploaded['stock-power'] && uploaded.medallion && uploaded.w9
     if (step === 'kyc') return idVerified
     return true
-  }, [
-    account,
-    broker,
-    holding,
-    idVerified,
-    intent,
-    shares,
-    step,
-    uploaded,
-  ])
+  }, [account, broker, holding, idVerified, intent, shares, step, uploaded])
 
   const next = () => {
-    const order: StepId[] = [
-      'intent',
-      'holding',
-      'destination',
-      'documents',
-      'kyc',
-      'confirm',
-      'success',
-    ]
+    const order: StepId[] = ['intent', 'holding', 'destination', 'documents', 'kyc', 'confirm', 'success']
     const idx = order.indexOf(step)
     if (idx < order.length - 1) setStep(order[idx + 1]!)
   }
 
   const back = () => {
-    const order: StepId[] = [
-      'intent',
-      'holding',
-      'destination',
-      'documents',
-      'kyc',
-      'confirm',
-      'success',
-    ]
+    const order: StepId[] = ['intent', 'holding', 'destination', 'documents', 'kyc', 'confirm', 'success']
     const idx = order.indexOf(step)
     if (idx > 0) setStep(order[idx - 1]!)
   }
@@ -236,13 +196,10 @@ export function GuidedIntake() {
     <div className='wizard'>
       <div className='wizard-steps'>
         {STEPS.slice(0, 6).map((s, idx) => {
-          const state =
-            idx < stepIdx ? 'done' : idx === stepIdx ? 'current' : ''
+          const state = idx < stepIdx ? 'done' : idx === stepIdx ? 'current' : ''
           return (
             <div className={`wizard-step ${state}`} key={s.id}>
-              <span className='wizard-step-num'>
-                {idx < stepIdx ? <Icon name='check' size={12} /> : idx + 1}
-              </span>
+              <span className='wizard-step-num'>{idx < stepIdx ? <Icon name='check' size={12} /> : idx + 1}</span>
               <div>
                 <div className='wizard-step-title'>{s.label}</div>
                 <div className='wizard-step-sub'>{s.sub}</div>
@@ -257,9 +214,7 @@ export function GuidedIntake() {
           <div className='panel-header'>
             <div>
               <div className='panel-title'>{STEPS[stepIdx]?.label}</div>
-              <div className='panel-subtitle'>
-                Step {Math.min(stepIdx + 1, 6)} of 6 · Proxi guided intake
-              </div>
+              <div className='panel-subtitle'>Step {Math.min(stepIdx + 1, 6)} of 6 · Proxi guided intake</div>
             </div>
             <Badge icon='shield-check' tone='positive'>
               Secure session · encrypted
@@ -273,44 +228,23 @@ export function GuidedIntake() {
           <div className='panel-body pt-5'>
             {step === 'intent' && (
               <div className='flex flex-col gap-3'>
-                <p className='text-[13px] text-[color:var(--color-ink-600)]'>
-                  What would you like Proxi to do? You can change your mind
-                  later.
-                </p>
+                <p className='text-[13px] text-ink-600'>What would you like Proxi to do? You can change your mind later.</p>
                 <div className='grid grid-cols-1 gap-2 md:grid-cols-2'>
-                  {intents.map((i) => (
+                  {intents.map(i => (
                     <label
                       className={`flex cursor-pointer items-start gap-3 rounded-[10px] border px-3 py-3 ${
-                        intent === i.id
-                          ? 'border-[color:var(--color-ink-900)] bg-[color:var(--color-surface-2)]'
-                          : 'border-[color:var(--color-line)] bg-white hover:border-[color:var(--color-border-strong)]'
+                        intent === i.id ? 'border-ink-900 bg-surface-2' : 'border-line bg-white hover:border-border-strong'
                       }`}
                       key={i.id}
                     >
-                      <input
-                        checked={intent === i.id}
-                        className='mt-1'
-                        name='intent'
-                        onChange={() => setIntent(i.id)}
-                        type='radio'
-                      />
+                      <input checked={intent === i.id} className='mt-1' name='intent' onChange={() => setIntent(i.id)} type='radio' />
                       <div className='flex-1'>
                         <div className='flex items-center gap-2'>
-                          <Icon
-                            className='text-[color:var(--color-brand-700)]'
-                            name={i.icon}
-                            size={14}
-                          />
-                          <span className='text-[13.5px] font-semibold text-[color:var(--color-ink-900)]'>
-                            {i.label}
-                          </span>
+                          <Icon className='text-brand-700' name={i.icon} size={14} />
+                          <span className='text-[13.5px] font-semibold text-ink-900'>{i.label}</span>
                         </div>
-                        <div className='mt-1 text-[12px] text-[color:var(--color-ink-600)]'>
-                          {i.blurb}
-                        </div>
-                        <div className='mt-1 text-[11.5px] text-[color:var(--color-ink-500)]'>
-                          Turnaround: {i.turnaround}
-                        </div>
+                        <div className='mt-1 text-[12px] text-ink-600'>{i.blurb}</div>
+                        <div className='mt-1 text-[11.5px] text-ink-500'>Turnaround: {i.turnaround}</div>
                       </div>
                     </label>
                   ))}
@@ -320,9 +254,7 @@ export function GuidedIntake() {
 
             {step === 'holding' && (
               <div className='flex flex-col gap-4'>
-                <p className='text-[13px] text-[color:var(--color-ink-600)]'>
-                  Which holding would you like to transfer from?
-                </p>
+                <p className='text-[13px] text-ink-600'>Which holding would you like to transfer from?</p>
                 <div className='table-wrap'>
                   <table className='table'>
                     <thead>
@@ -334,29 +266,18 @@ export function GuidedIntake() {
                       </tr>
                     </thead>
                     <tbody>
-                      {holdings.map((h) => (
+                      {holdings.map(h => (
                         <tr
-                          className={`table-row-clickable ${
-                            holding === h.issuer
-                              ? 'bg-[color:var(--color-surface-2)]'
-                              : ''
-                          }`}
+                          className={`table-row-clickable ${holding === h.issuer ? 'bg-surface-2' : ''}`}
                           key={h.issuer}
                           onClick={() => setHolding(h.issuer)}
                         >
                           <td style={{ width: 32 }}>
-                            <input
-                              checked={holding === h.issuer}
-                              name='holding'
-                              onChange={() => setHolding(h.issuer)}
-                              type='radio'
-                            />
+                            <input checked={holding === h.issuer} name='holding' onChange={() => setHolding(h.issuer)} type='radio' />
                           </td>
                           <td>
                             <div className='cell-primary'>{h.issuer}</div>
-                            <div className='mono text-[11.5px] text-[color:var(--color-ink-500)]'>
-                              {h.ticker}
-                            </div>
+                            <div className='mono text-[11.5px] text-ink-500'>{h.ticker}</div>
                           </td>
                           <td className='cell-num num'>{h.available}</td>
                           <td>
@@ -374,127 +295,84 @@ export function GuidedIntake() {
                   </table>
                 </div>
                 <div>
-                  <label className='text-[12px] font-medium text-[color:var(--color-ink-700)]'>
+                  <label className='text-[12px] font-medium text-ink-700'>
                     Shares to transfer
                     <input
                       className='input mt-1 max-w-[220px] num'
-                      onChange={(e) => setShares(e.target.value)}
+                      onChange={e => setShares(e.target.value)}
                       type='number'
                       value={shares}
                     />
                   </label>
-                  <div className='mt-1 text-[11.5px] text-[color:var(--color-ink-500)]'>
-                    1,240 available · lots FIFO unless specified
-                  </div>
+                  <div className='mt-1 text-[11.5px] text-ink-500'>1,240 available · lots FIFO unless specified</div>
                 </div>
               </div>
             )}
 
             {step === 'destination' && (
               <div className='flex flex-col gap-4'>
-                <p className='text-[13px] text-[color:var(--color-ink-600)]'>
-                  Where should these shares go?
-                </p>
+                <p className='text-[13px] text-ink-600'>Where should these shares go?</p>
                 <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
-                  <label className='text-[12px] font-medium text-[color:var(--color-ink-700)]'>
+                  <label className='text-[12px] font-medium text-ink-700'>
                     Destination broker
-                    <select
-                      className='select mt-1'
-                      onChange={(e) => setBroker(e.target.value)}
-                      value={broker}
-                    >
-                      {brokers.map((b) => (
+                    <select className='select mt-1' onChange={e => setBroker(e.target.value)} value={broker}>
+                      {brokers.map(b => (
                         <option key={b} value={b}>
                           {b}
                         </option>
                       ))}
                     </select>
                   </label>
-                  <label className='text-[12px] font-medium text-[color:var(--color-ink-700)]'>
+                  <label className='text-[12px] font-medium text-ink-700'>
                     Destination account #
-                    <input
-                      className='input mt-1 mono'
-                      onChange={(e) => setAccount(e.target.value)}
-                      value={account}
-                    />
+                    <input className='input mt-1 mono' onChange={e => setAccount(e.target.value)} value={account} />
                   </label>
-                  <label className='text-[12px] font-medium text-[color:var(--color-ink-700)]'>
+                  <label className='text-[12px] font-medium text-ink-700'>
                     Account title
-                    <input
-                      className='input mt-1'
-                      defaultValue='Eleanor M. Hayes IRA'
-                    />
+                    <input className='input mt-1' defaultValue='Eleanor M. Hayes IRA' />
                   </label>
-                  <label className='text-[12px] font-medium text-[color:var(--color-ink-700)]'>
+                  <label className='text-[12px] font-medium text-ink-700'>
                     DTC participant (auto-matched)
-                    <input
-                      className='input mt-1 mono'
-                      disabled
-                      value='0226 · National Financial'
-                    />
+                    <input className='input mt-1 mono' disabled value='0226 · National Financial' />
                   </label>
                 </div>
-                <div className='rounded-[8px] border border-[color:var(--color-brand-100)] bg-[color:var(--color-brand-50)] px-3 py-2.5 text-[12.5px] text-[color:var(--color-brand-900)]'>
-                  <Icon
-                    className='mr-1 inline text-[color:var(--color-brand-700)]'
-                    name='sparkles'
-                    size={12}
-                  />
-                  Proxi will send a DTC DWAC instruction. You’ll see the draft
-                  before anything moves.
+                <div className='rounded-md border border-brand-100 bg-brand-50 px-3 py-2.5 text-[12.5px] text-brand-900'>
+                  <Icon className='mr-1 inline text-brand-700' name='sparkles' size={12} />
+                  Proxi will send a DTC DWAC instruction. You’ll see the draft before anything moves.
                 </div>
               </div>
             )}
 
             {step === 'documents' && (
               <div className='flex flex-col gap-3'>
-                <p className='text-[13px] text-[color:var(--color-ink-600)]'>
-                  I need these documents to process straight-through. Proxi
-                  generates what it can and asks you for the rest.
+                <p className='text-[13px] text-ink-600'>
+                  I need these documents to process straight-through. Proxi generates what it can and asks you for the rest.
                 </p>
-                <ul className='divide-y divide-[color:var(--color-line)] rounded-[8px] border border-[color:var(--color-line)]'>
-                  {documentChecklist.map((d) => (
-                    <li
-                      className='flex items-center gap-3 bg-white px-4 py-3'
-                      key={d.id}
-                    >
+                <ul className='divide-y divide-line rounded-md border border-line'>
+                  {documentChecklist.map(d => (
+                    <li className='flex items-center gap-3 bg-white px-4 py-3' key={d.id}>
                       <div
-                        className={`flex h-8 w-8 items-center justify-center rounded-[6px] ${
-                          uploaded[d.id]
-                            ? 'bg-[color:var(--color-positive-100)] text-[color:var(--color-positive-700)]'
-                            : 'bg-[color:var(--color-surface-sunken)] text-[color:var(--color-ink-600)]'
+                        className={`flex h-8 w-8 items-center justify-center rounded-sm ${
+                          uploaded[d.id] ? 'bg-positive-100 text-positive-700' : 'bg-surface-sunken text-ink-600'
                         }`}
                       >
-                        <Icon
-                          name={uploaded[d.id] ? 'check-circle' : 'file-text'}
-                          size={15}
-                        />
+                        <Icon name={uploaded[d.id] ? 'check-circle' : 'file-text'} size={15} />
                       </div>
                       <div className='flex-1 min-w-0'>
                         <div className='flex items-center gap-2'>
-                          <span className='text-[13.5px] font-semibold text-[color:var(--color-ink-900)]'>
-                            {d.label}
-                          </span>
-                          {d.required && !uploaded[d.id] && (
-                            <Badge tone='warning'>Required</Badge>
-                          )}
+                          <span className='text-[13.5px] font-semibold text-ink-900'>{d.label}</span>
+                          {d.required && !uploaded[d.id] && <Badge tone='warning'>Required</Badge>}
                           {uploaded[d.id] && (
                             <Badge icon='check' tone='positive'>
                               Uploaded
                             </Badge>
                           )}
                         </div>
-                        <div className='text-[11.5px] text-[color:var(--color-ink-500)]'>
-                          {d.blurb}
-                        </div>
+                        <div className='text-[11.5px] text-ink-500'>{d.blurb}</div>
                       </div>
                       <button
-                        className={`btn btn-sm ${
-                          uploaded[d.id] ? 'btn-ghost' : 'btn-secondary'
-                        }`}
-                        onClick={() =>
-                          setUploaded((u) => ({ ...u, [d.id]: !u[d.id] }))
-                        }
+                        className={`btn btn-sm ${uploaded[d.id] ? 'btn-ghost' : 'btn-secondary'}`}
+                        onClick={() => setUploaded(u => ({ ...u, [d.id]: !u[d.id] }))}
                         type='button'
                       >
                         {uploaded[d.id] ? (
@@ -517,15 +395,11 @@ export function GuidedIntake() {
 
             {step === 'kyc' && (
               <div className='flex flex-col gap-4'>
-                <p className='text-[13px] text-[color:var(--color-ink-600)]'>
-                  One quick identity check. Match your face to your ID on file.
-                </p>
+                <p className='text-[13px] text-ink-600'>One quick identity check. Match your face to your ID on file.</p>
                 <div className='grid grid-cols-1 gap-3 md:grid-cols-3'>
                   <div className='evidence-thumb'>
                     <Icon name='id-card' size={28} />
-                    <div className='evidence-thumb-label'>
-                      Government ID · on file
-                    </div>
+                    <div className='evidence-thumb-label'>Government ID · on file</div>
                     <span className='evidence-thumb-badge'>2028 expiry</span>
                   </div>
                   <div className='evidence-thumb'>
@@ -557,12 +431,8 @@ export function GuidedIntake() {
                   )}
                 </button>
                 {idVerified && (
-                  <div className='rounded-[8px] border border-[color:var(--color-positive-100)] bg-[color:var(--color-positive-100)]/60 px-3 py-2.5 text-[12.5px] text-[color:var(--color-positive-700)]'>
-                    <Icon
-                      className='mr-1 inline'
-                      name='check-circle'
-                      size={12}
-                    />
+                  <div className='rounded-md border border-positive-100 bg-positive-100/60 px-3 py-2.5 text-[12.5px] text-positive-700'>
+                    <Icon className='mr-1 inline' name='check-circle' size={12} />
                     Identity verified · face match 97% · liveness passed
                   </div>
                 )}
@@ -571,11 +441,8 @@ export function GuidedIntake() {
 
             {step === 'confirm' && (
               <div className='flex flex-col gap-4'>
-                <p className='text-[13px] text-[color:var(--color-ink-600)]'>
-                  Review the request. You can still cancel — nothing has been
-                  submitted yet.
-                </p>
-                <dl className='dl rounded-[8px] border border-[color:var(--color-line)] bg-[color:var(--color-surface-2)] p-4'>
+                <p className='text-[13px] text-ink-600'>Review the request. You can still cancel — nothing has been submitted yet.</p>
+                <dl className='dl rounded-md border border-line bg-surface-2 p-4'>
                   <dt>Action</dt>
                   <dd>{intentMeta.label}</dd>
                   <dt>From</dt>
@@ -588,8 +455,7 @@ export function GuidedIntake() {
                   <dd className='mono'>{account}</dd>
                   <dt>Documents</dt>
                   <dd>
-                    Stock power, medallion, W-9 · all present ·{' '}
-                    <span className='trend-up'>AI pre-check 96%</span>
+                    Stock power, medallion, W-9 · all present · <span className='trend-up'>AI pre-check 96%</span>
                   </dd>
                   <dt>Identity</dt>
                   <dd>Verified · 97% · {new Date().toLocaleDateString()}</dd>
@@ -601,15 +467,12 @@ export function GuidedIntake() {
 
             {step === 'success' && (
               <div className='flex flex-col items-center gap-3 py-6 text-center'>
-                <div className='flex h-12 w-12 items-center justify-center rounded-full bg-[color:var(--color-brand-100)] text-[color:var(--color-brand-700)]'>
+                <div className='flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-brand-700'>
                   <Icon name='check-circle' size={24} />
                 </div>
-                <div className='text-[18px] font-semibold text-[color:var(--color-ink-900)]'>
-                  Request submitted · case TR-120502
-                </div>
-                <p className='max-w-md text-[13px] text-[color:var(--color-ink-600)]'>
-                  Proxi is reviewing your evidence. Typical turnaround for
-                  this workflow is <strong>1 business day</strong>. You’ll be
+                <div className='text-[18px] font-semibold text-ink-900'>Request submitted · case TR-120502</div>
+                <p className='max-w-md text-[13px] text-ink-600'>
+                  Proxi is reviewing your evidence. Typical turnaround for this workflow is <strong>1 business day</strong>. You’ll be
                   notified at every state change.
                 </p>
                 <div className='flex gap-2'>
@@ -627,12 +490,7 @@ export function GuidedIntake() {
 
           {step !== 'success' && (
             <div className='panel-footer'>
-              <button
-                className='btn btn-ghost btn-sm'
-                disabled={stepIdx === 0}
-                onClick={back}
-                type='button'
-              >
+              <button className='btn btn-ghost btn-sm' disabled={stepIdx === 0} onClick={back} type='button'>
                 <Icon name='chevron-right' size={13} />
                 Back
               </button>
@@ -640,12 +498,7 @@ export function GuidedIntake() {
                 <Link className='btn btn-ghost btn-sm' href='/investor'>
                   Save & exit
                 </Link>
-                <button
-                  className='btn btn-brand btn-sm'
-                  disabled={!canContinue}
-                  onClick={next}
-                  type='button'
-                >
+                <button className='btn btn-brand btn-sm' disabled={!canContinue} onClick={next} type='button'>
                   {step === 'confirm' ? 'Submit request' : 'Continue'}
                   <Icon name='arrow-right' size={13} />
                 </button>
@@ -689,39 +542,18 @@ export function GuidedIntake() {
         />
 
         <Panel title='Why Proxi asks this'>
-          <ul className='flex flex-col gap-2 text-[12.5px] text-[color:var(--color-ink-600)]'>
+          <ul className='flex flex-col gap-2 text-[12.5px] text-ink-600'>
             <li className='flex items-start gap-2'>
-              <Icon
-                className='mt-0.5 text-[color:var(--color-brand-700)]'
-                name='shield-check'
-                size={12}
-              />
-              <span>
-                Every request is logged to an immutable case file with
-                timestamps.
-              </span>
+              <Icon className='mt-0.5 text-brand-700' name='shield-check' size={12} />
+              <span>Every request is logged to an immutable case file with timestamps.</span>
             </li>
             <li className='flex items-start gap-2'>
-              <Icon
-                className='mt-0.5 text-[color:var(--color-brand-700)]'
-                name='shield-check'
-                size={12}
-              />
-              <span>
-                High-confidence cases go straight-through without human
-                delay.
-              </span>
+              <Icon className='mt-0.5 text-brand-700' name='shield-check' size={12} />
+              <span>High-confidence cases go straight-through without human delay.</span>
             </li>
             <li className='flex items-start gap-2'>
-              <Icon
-                className='mt-0.5 text-[color:var(--color-brand-700)]'
-                name='shield-check'
-                size={12}
-              />
-              <span>
-                Only transfer agents at Proxi can post to the shareholder
-                ledger.
-              </span>
+              <Icon className='mt-0.5 text-brand-700' name='shield-check' size={12} />
+              <span>Only transfer agents at Proxi can post to the shareholder ledger.</span>
             </li>
           </ul>
         </Panel>

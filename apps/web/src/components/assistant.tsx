@@ -27,36 +27,25 @@ export function ProxiAssistant({
           <span className='assistant-title'>{title}</span>
           <span className='assistant-sub'>{subtitle}</span>
         </div>
-        <div className='ml-auto flex items-center gap-1 text-[11px] text-[color:var(--color-ink-500)]'>
-          <span className='h-1.5 w-1.5 rounded-full bg-[color:var(--color-positive-500)]' />
+        <div className='ml-auto flex items-center gap-1 text-[11px] text-ink-500'>
+          <span className='h-1.5 w-1.5 rounded-full bg-positive-500' />
           Online
         </div>
       </div>
 
       <div className='assistant-messages'>
         {messages.map((m, i) => (
-          <div
-            className={m.author === 'assistant' ? 'bubble-assistant' : 'bubble-user'}
-            key={i}
-          >
+          <div className={m.author === 'assistant' ? 'bubble-assistant' : 'bubble-user'} key={i}>
             <div>{m.body}</div>
             {m.meta && (
-              <div
-                className={`mt-1.5 text-[11px] ${
-                  m.author === 'assistant'
-                    ? 'text-[color:var(--color-brand-700)]/80'
-                    : 'text-white/70'
-                }`}
-              >
-                {m.meta}
-              </div>
+              <div className={`mt-1.5 text-[11px] ${m.author === 'assistant' ? 'text-brand-700/80' : 'text-white/70'}`}>{m.meta}</div>
             )}
           </div>
         ))}
       </div>
 
       <div className='quick-actions'>
-        {quickActions.map((q) => (
+        {quickActions.map(q => (
           <button className='quick-action' key={q} type='button'>
             {q}
           </button>
@@ -72,11 +61,7 @@ export function ProxiAssistant({
         </button>
       </div>
 
-      {footerNote && (
-        <div className='border-t border-[color:var(--color-line)] bg-[color:var(--color-surface-2)] px-4 py-2 text-[11px] text-[color:var(--color-ink-500)]'>
-          {footerNote}
-        </div>
-      )}
+      {footerNote && <div className='border-t border-line bg-surface-2 px-4 py-2 text-[11px] text-ink-500'>{footerNote}</div>}
     </div>
   )
 }

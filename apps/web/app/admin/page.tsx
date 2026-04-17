@@ -1,16 +1,6 @@
 import { AppShell } from '@/components/app-shell'
 import { Icon } from '@/components/icon'
-import {
-  Avatar,
-  Badge,
-  Chip,
-  Confidence,
-  Metric,
-  PageHeader,
-  Panel,
-  StatusPill,
-  Tabs,
-} from '@/components/ui'
+import { Avatar, Badge, Chip, Confidence, Metric, PageHeader, Panel, StatusPill, Tabs } from '@/components/ui'
 
 const risks = [
   {
@@ -170,32 +160,10 @@ export default function AdminOverview() {
       />
 
       <div className='mb-5 grid grid-cols-1 gap-3 md:grid-cols-4'>
-        <Metric
-          delta='-6 pts WoW'
-          helper='composite score'
-          label='Platform risk score'
-          trend='down'
-          value='Low · 14'
-        />
-        <Metric
-          delta='4 new today'
-          helper='14 critical · 11 high'
-          label='Cases in review'
-          trend='up'
-          value='25'
-        />
-        <Metric
-          helper='resolved in 48h'
-          label='Escalations closed'
-          value='9'
-        />
-        <Metric
-          delta='0 overdue'
-          helper='SOC 2 control'
-          label='Policy violations'
-          trend='flat'
-          value='0'
-        />
+        <Metric delta='-6 pts WoW' helper='composite score' label='Platform risk score' trend='down' value='Low · 14' />
+        <Metric delta='4 new today' helper='14 critical · 11 high' label='Cases in review' trend='up' value='25' />
+        <Metric helper='resolved in 48h' label='Escalations closed' value='9' />
+        <Metric delta='0 overdue' helper='SOC 2 control' label='Policy violations' trend='flat' value='0' />
       </div>
 
       <div className='grid grid-cols-1 gap-5 lg:grid-cols-[1fr_340px]'>
@@ -232,12 +200,10 @@ export default function AdminOverview() {
                   </tr>
                 </thead>
                 <tbody>
-                  {risks.map((r) => (
+                  {risks.map(r => (
                     <tr className='table-row-clickable' key={r.id}>
                       <td>
-                        <div className='mono text-[12px] font-semibold text-[color:var(--color-ink-800)]'>
-                          {r.id}
-                        </div>
+                        <div className='mono text-[12px] font-semibold text-ink-800'>{r.id}</div>
                       </td>
                       <td>
                         <Badge icon='alert-triangle' tone={r.tone}>
@@ -253,10 +219,7 @@ export default function AdminOverview() {
                       </td>
                       <td className='cell-muted num'>{r.age}</td>
                       <td>
-                        <button
-                          className='btn btn-ghost btn-sm'
-                          type='button'
-                        >
+                        <button className='btn btn-ghost btn-sm' type='button'>
                           Review
                           <Icon name='chevron-right' size={13} />
                         </button>
@@ -293,7 +256,7 @@ export default function AdminOverview() {
                     </tr>
                   </thead>
                   <tbody>
-                    {policies.map((p) => (
+                    {policies.map(p => (
                       <tr key={p.name}>
                         <td className='cell-primary'>{p.name}</td>
                         <td className='cell-muted'>{p.category}</td>
@@ -339,10 +302,7 @@ export default function AdminOverview() {
         </div>
 
         <aside className='flex flex-col gap-5'>
-          <Panel
-            actions={<Badge tone='positive'>SOC 2 · Ready</Badge>}
-            title='Control health'
-          >
+          <Panel actions={<Badge tone='positive'>SOC 2 · Ready</Badge>} title='Control health'>
             <ul className='flex flex-col gap-3'>
               {[
                 {
@@ -370,14 +330,9 @@ export default function AdminOverview() {
                   status: 'Aligned to FINRA 3110',
                   tone: 'positive' as const,
                 },
-              ].map((c) => (
-                <li
-                  className='flex items-center justify-between'
-                  key={c.label}
-                >
-                  <span className='text-[13px] text-[color:var(--color-ink-800)]'>
-                    {c.label}
-                  </span>
+              ].map(c => (
+                <li className='flex items-center justify-between' key={c.label}>
+                  <span className='text-[13px] text-ink-800'>{c.label}</span>
                   <Badge tone={c.tone}>{c.status}</Badge>
                 </li>
               ))}
@@ -387,30 +342,21 @@ export default function AdminOverview() {
           <Panel padded={false} title='Users & roles'>
             <div className='p-4'>
               <div className='grid grid-cols-2 gap-2'>
-                {roles.map((r) => (
-                  <div
-                    className='rounded-[8px] border border-[color:var(--color-line)] bg-[color:var(--color-surface-2)] px-3 py-2.5'
-                    key={r.label}
-                  >
-                    <div className='flex items-center gap-2 text-[11.5px] text-[color:var(--color-ink-500)]'>
+                {roles.map(r => (
+                  <div className='rounded-md border border-line bg-surface-2 px-3 py-2.5' key={r.label}>
+                    <div className='flex items-center gap-2 text-[11.5px] text-ink-500'>
                       <Badge tone={r.tone}>{r.label.split(' ')[0]}</Badge>
                     </div>
                     <div className='mt-1 flex items-baseline justify-between'>
-                      <span className='num text-[18px] font-semibold text-[color:var(--color-ink-900)]'>
-                        {r.count}
-                      </span>
-                      <span className='text-[11.5px] text-[color:var(--color-ink-500)]'>
-                        active
-                      </span>
+                      <span className='num text-[18px] font-semibold text-ink-900'>{r.count}</span>
+                      <span className='text-[11.5px] text-ink-500'>active</span>
                     </div>
                   </div>
                 ))}
               </div>
               <div className='hr' />
               <div className='flex items-center justify-between'>
-                <span className='text-[12.5px] text-[color:var(--color-ink-600)]'>
-                  Pending access reviews
-                </span>
+                <span className='text-[12.5px] text-ink-600'>Pending access reviews</span>
                 <Badge tone='warning'>7 due</Badge>
               </div>
               <button className='btn btn-secondary btn-sm mt-3 w-full' type='button'>
@@ -438,19 +384,12 @@ export default function AdminOverview() {
                   role: 'AML analyst',
                   tone: 'violet' as const,
                 },
-              ].map((u) => (
-                <li
-                  className='flex items-center gap-2 rounded-[8px] border border-[color:var(--color-line)] bg-[color:var(--color-surface-2)] px-3 py-2'
-                  key={u.name}
-                >
+              ].map(u => (
+                <li className='flex items-center gap-2 rounded-md border border-line bg-surface-2 px-3 py-2' key={u.name}>
                   <Avatar name={u.name} size={26} tone={u.tone} />
                   <div>
-                    <div className='text-[13px] font-semibold text-[color:var(--color-ink-900)]'>
-                      {u.name}
-                    </div>
-                    <div className='text-[11.5px] text-[color:var(--color-ink-500)]'>
-                      {u.role}
-                    </div>
+                    <div className='text-[13px] font-semibold text-ink-900'>{u.name}</div>
+                    <div className='text-[11.5px] text-ink-500'>{u.role}</div>
                   </div>
                   <StatusPill status='ready' />
                 </li>
