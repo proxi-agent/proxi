@@ -12,12 +12,14 @@ export interface RestrictionContext {
 
 export interface RestrictionCheck {
   blocking: boolean
+  code: string
   detail: string
   name: string
   passed: boolean
 }
 
 export interface RestrictionEvaluation {
+  blockingCodes: string[]
   blockingReasons: string[]
   checks: RestrictionCheck[]
   eligible: boolean
@@ -49,6 +51,7 @@ export class RulesService {
 
     checks.push({
       blocking: true,
+      code: 'OWNERSHIP_INSUFFICIENT',
       detail: `Available units: ${availableUnits}. Requested: ${quantity}.`,
       name: 'Ownership balance check',
       passed: availableUnits >= quantity,
@@ -56,6 +59,7 @@ export class RulesService {
 
     checks.push({
       blocking: true,
+      code: 'HOLDER_DUPLICATE',
       detail: 'From and To holder accounts must be different.',
       name: 'Distinct holder check',
       passed: Boolean(fromHolderId && toHolderId && fromHolderId !== toHolderId),
@@ -63,6 +67,7 @@ export class RulesService {
 
     checks.push({
       blocking: true,
+      code: 'LOCKUP_ACTIVE',
       detail: 'Transfer blocked while lock-up period is active.',
       name: 'Lock-up restriction check',
       passed: !input.lockupActive,
@@ -70,6 +75,7 @@ export class RulesService {
 
     checks.push({
       blocking: true,
+      code: 'SEC_RESTRICTED',
       detail: 'Transfer blocked while SEC restriction is active.',
       name: 'SEC restriction check',
       passed: !input.secRestrictionActive,
@@ -77,6 +83,7 @@ export class RulesService {
 
     checks.push({
       blocking: true,
+      code: 'LIEN_HOLD_PRESENT',
       detail: 'Transfer blocked because a lien/hold exists.',
       name: 'Lien/hold check',
       passed: !input.hasLien,
@@ -84,13 +91,16 @@ export class RulesService {
 
     checks.push({
       blocking: true,
+      code: 'COMPANY_APPROVAL_REQUIRED',
       detail: 'Company approval required when restrictions are flagged.',
       name: 'Company approval check',
       passed: !input.secRestrictionActive || Boolean(input.companyApproval),
     })
 
+    const blockingCodes = checks.filter(check => check.blocking && !check.passed).map(check => check.code)
     const blockingReasons = checks.filter(check => check.blocking && !check.passed).map(check => check.name)
     return {
+      blockingCodes,
       blockingReasons,
       checks,
       eligible: blockingReasons.length === 0,
@@ -102,6 +112,7 @@ export class RulesService {
       return this.evaluateTransferEligibility(input)
     }
     return {
+      blockingCodes: [],
       blockingReasons: [],
       checks: [],
       eligible: true,

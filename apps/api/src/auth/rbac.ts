@@ -3,6 +3,8 @@ export const PERMISSIONS = [
   'ledger.post',
   'report.view',
   'shareholder.transfer.create',
+  'transfer.ai.process',
+  'transfer.approve',
   'transfer.review',
   'transfer.view',
   'user.manage',
@@ -24,10 +26,19 @@ export const ROLES = [
 export type Role = (typeof ROLES)[number]
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
-  agent_admin: ['agent.admin', 'ledger.post', 'report.view', 'transfer.review', 'transfer.view', 'user.manage'],
-  agent_processor: ['ledger.post', 'transfer.review', 'transfer.view'],
-  agent_reviewer: ['transfer.review', 'transfer.view'],
-  compliance_reviewer: ['report.view', 'transfer.review', 'transfer.view'],
+  agent_admin: [
+    'agent.admin',
+    'ledger.post',
+    'report.view',
+    'transfer.ai.process',
+    'transfer.approve',
+    'transfer.review',
+    'transfer.view',
+    'user.manage',
+  ],
+  agent_processor: ['ledger.post', 'transfer.ai.process', 'transfer.review', 'transfer.view'],
+  agent_reviewer: ['transfer.approve', 'transfer.review', 'transfer.view'],
+  compliance_reviewer: ['report.view', 'transfer.approve', 'transfer.review', 'transfer.view'],
   issuer_admin: ['report.view', 'transfer.view', 'user.manage'],
   issuer_viewer: ['report.view', 'transfer.view'],
   shareholder: ['shareholder.transfer.create', 'transfer.view'],

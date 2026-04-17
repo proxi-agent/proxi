@@ -5,6 +5,7 @@ import { DatabaseService } from '../database/database.service.js'
 export type LedgerEventType = 'ISSUE' | 'TRANSFER' | 'CANCEL'
 
 export interface LedgerEvent {
+  caseId?: number
   id: number
   type: LedgerEventType
   securityId: string
@@ -22,6 +23,7 @@ export interface Position {
 }
 
 type LedgerEventRow = {
+  case_id: number | null
   id: number
   type: LedgerEventType
   security_id: string
@@ -38,39 +40,45 @@ export class LedgerService {
 
   async getEvents(): Promise<LedgerEvent[]> {
     const result = await this.database.query<LedgerEventRow>(
-      `SELECT id, type, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp
+      `SELECT id, type, case_id, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp
        FROM ledger_events
        ORDER BY timestamp DESC`,
     )
     return result.rows.map(mapLedgerEvent)
   }
 
-  async issue(securityId: string, holderId: string, quantity: number): Promise<LedgerEvent> {
+  async issue(securityId: string, holderId: string, quantity: number, caseId?: number): Promise<LedgerEvent> {
     const result = await this.database.query<LedgerEventRow>(
-      `INSERT INTO ledger_events (type, security_id, holder_id, quantity, timestamp)
-       VALUES ('ISSUE', $1, $2, $3, NOW())
-       RETURNING id, type, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp`,
-      [securityId, holderId, quantity],
+      `INSERT INTO ledger_events (type, case_id, security_id, holder_id, quantity, timestamp)
+       VALUES ('ISSUE', $1, $2, $3, $4, NOW())
+       RETURNING id, type, case_id, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp`,
+      [caseId || null, securityId, holderId, quantity],
     )
     return mapLedgerEvent(result.rows[0])
   }
 
-  async transfer(securityId: string, fromHolderId: string, toHolderId: string, quantity: number): Promise<LedgerEvent> {
+  async transfer(
+    securityId: string,
+    fromHolderId: string,
+    toHolderId: string,
+    quantity: number,
+    caseId?: number,
+  ): Promise<LedgerEvent> {
     const result = await this.database.query<LedgerEventRow>(
-      `INSERT INTO ledger_events (type, security_id, from_holder_id, to_holder_id, quantity, timestamp)
-       VALUES ('TRANSFER', $1, $2, $3, $4, NOW())
-       RETURNING id, type, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp`,
-      [securityId, fromHolderId, toHolderId, quantity],
+      `INSERT INTO ledger_events (type, case_id, security_id, from_holder_id, to_holder_id, quantity, timestamp)
+       VALUES ('TRANSFER', $1, $2, $3, $4, $5, NOW())
+       RETURNING id, type, case_id, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp`,
+      [caseId || null, securityId, fromHolderId, toHolderId, quantity],
     )
     return mapLedgerEvent(result.rows[0])
   }
 
-  async cancel(securityId: string, holderId: string, quantity: number): Promise<LedgerEvent> {
+  async cancel(securityId: string, holderId: string, quantity: number, caseId?: number): Promise<LedgerEvent> {
     const result = await this.database.query<LedgerEventRow>(
-      `INSERT INTO ledger_events (type, security_id, holder_id, quantity, timestamp)
-       VALUES ('CANCEL', $1, $2, $3, NOW())
-       RETURNING id, type, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp`,
-      [securityId, holderId, quantity],
+      `INSERT INTO ledger_events (type, case_id, security_id, holder_id, quantity, timestamp)
+       VALUES ('CANCEL', $1, $2, $3, $4, NOW())
+       RETURNING id, type, case_id, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp`,
+      [caseId || null, securityId, holderId, quantity],
     )
     return mapLedgerEvent(result.rows[0])
   }
@@ -111,6 +119,7 @@ export class LedgerService {
 
 function mapLedgerEvent(row: LedgerEventRow): LedgerEvent {
   return {
+    caseId: row.case_id || undefined,
     fromHolderId: row.from_holder_id || undefined,
     holderId: row.holder_id || undefined,
     id: row.id,

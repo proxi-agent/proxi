@@ -18,7 +18,7 @@ export class OperationsController {
 
   @Permissions('report.view')
   @Get('audit-trail')
-  getAuditTrail(): AuditTrailEntry[] {
+  async getAuditTrail(): Promise<AuditTrailEntry[]> {
     return this.operationsService.getAuditTrail()
   }
 
@@ -42,7 +42,7 @@ export class OperationsController {
 
   @Permissions('report.view')
   @Get('reports/summary')
-  getReportsSummary(): ReportsSummary {
+  async getReportsSummary(): Promise<ReportsSummary> {
     return this.operationsService.getReportsSummary()
   }
 

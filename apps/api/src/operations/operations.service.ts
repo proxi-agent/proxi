@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 
+import { DatabaseService } from '../database/database.service.js'
 import { PORTAL_MOCKS, type PortalMockPayload } from '../mock/portal-mocks.js'
 
 export interface AuditTrailEntry {
@@ -42,6 +43,9 @@ export interface ReconciliationBreak {
 }
 
 export interface ReportsSummary {
+  aiJobsFailed: number
+  aiJobsQueued: number
+  aiJobsSucceeded: number
   exceptionRatePct: number
   openBreaks: number
   reconciliationAccuracyPct: number
@@ -55,22 +59,61 @@ export interface PortalMockResponse extends PortalMockPayload {
 
 @Injectable()
 export class OperationsService {
-  private readonly auditTrail: AuditTrailEntry[] = []
   private readonly exceptions: ExceptionItem[] = []
   private readonly holderProfiles: HolderProfile[] = []
   private readonly reconciliationBreaks: ReconciliationBreak[] = []
-  private readonly reportsSummary: ReportsSummary
 
-  constructor() {
-    this.auditTrail = this.seedAuditTrail()
+  constructor(private readonly database: DatabaseService) {
     this.exceptions = this.seedExceptions()
     this.holderProfiles = this.seedHolderProfiles()
     this.reconciliationBreaks = this.seedReconciliationBreaks()
-    this.reportsSummary = this.seedReportsSummary()
   }
 
-  getAuditTrail(): AuditTrailEntry[] {
-    return [...this.auditTrail].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+  async getAuditTrail(): Promise<AuditTrailEntry[]> {
+    const caseEvents = await this.database.query<{
+      actor: string
+      created_at: Date
+      event_type: string
+      id: number
+      case_id: number
+    }>(
+      `SELECT id, case_id, event_type, actor, created_at
+       FROM transfer_case_events
+       ORDER BY created_at DESC
+       LIMIT 200`,
+    )
+    const ledgerEvents = await this.database.query<{
+      id: number
+      timestamp: Date
+      type: string
+      case_id: number | null
+    }>(
+      `SELECT id, type, case_id, timestamp
+       FROM ledger_events
+       ORDER BY timestamp DESC
+       LIMIT 200`,
+    )
+
+    const mappedCaseEvents: AuditTrailEntry[] = caseEvents.rows.map(event => ({
+      action: event.event_type,
+      actor: event.actor,
+      entityId: `CASE-${event.case_id}`,
+      entityType: 'CASE',
+      id: event.id,
+      timestamp: new Date(event.created_at),
+    }))
+    const mappedLedgerEvents: AuditTrailEntry[] = ledgerEvents.rows.map(event => ({
+      action: `LEDGER_${event.type}`,
+      actor: 'system',
+      entityId: event.case_id ? `CASE-${event.case_id}` : `LEDGER_EVENT-${event.id}`,
+      entityType: 'LEDGER_EVENT',
+      id: 100000 + event.id,
+      timestamp: new Date(event.timestamp),
+    }))
+
+    return [...mappedCaseEvents, ...mappedLedgerEvents]
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
+      .slice(0, 200)
   }
 
   getExceptions(): ExceptionItem[] {
@@ -85,8 +128,27 @@ export class OperationsService {
     return [...this.reconciliationBreaks].sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
   }
 
-  getReportsSummary(): ReportsSummary {
-    return this.reportsSummary
+  async getReportsSummary(): Promise<ReportsSummary> {
+    const [cases, ledger, queued, failed, succeeded] = await Promise.all([
+      this.database.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM transfer_cases'),
+      this.database.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM ledger_events'),
+      this.database.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM transfer_jobs WHERE status = 'QUEUED'"),
+      this.database.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM transfer_jobs WHERE status = 'FAILED'"),
+      this.database.query<{ count: string }>("SELECT COUNT(*)::text AS count FROM transfer_jobs WHERE status = 'SUCCEEDED'"),
+    ])
+
+    const totalCases = Number(cases.rows[0]?.count || '0')
+    const openBreaks = this.reconciliationBreaks.filter(item => item.status !== 'RESOLVED').length
+    return {
+      aiJobsFailed: Number(failed.rows[0]?.count || '0'),
+      aiJobsQueued: Number(queued.rows[0]?.count || '0'),
+      aiJobsSucceeded: Number(succeeded.rows[0]?.count || '0'),
+      exceptionRatePct: totalCases ? Number(((openBreaks / totalCases) * 100).toFixed(2)) : 0,
+      openBreaks,
+      reconciliationAccuracyPct: 98.9,
+      totalCases,
+      totalLedgerEvents: Number(ledger.rows[0]?.count || '0'),
+    }
   }
 
   getPortalMock(page: string, transferId?: string): PortalMockResponse | null {
@@ -101,24 +163,6 @@ export class OperationsService {
       page,
       ...payload,
     }
-  }
-
-  private seedAuditTrail(): AuditTrailEntry[] {
-    const actors = ['A. Rivera', 'D. Singh', 'L. Patel', 'M. Chen', 'S. Brooks']
-    const actions = ['Case created', 'Case status updated', 'Ledger transfer posted', 'Issue posted', 'Break reviewed']
-    const entityTypes: Array<'CASE' | 'LEDGER_EVENT' | 'POSITION'> = ['CASE', 'LEDGER_EVENT', 'POSITION']
-    const entries: AuditTrailEntry[] = []
-    for (let index = 0; index < 28; index += 1) {
-      entries.push({
-        id: index + 1,
-        actor: actors[index % actors.length],
-        action: actions[index % actions.length],
-        entityId: `${entityTypes[index % entityTypes.length]}-${1100 + index}`,
-        entityType: entityTypes[index % entityTypes.length],
-        timestamp: new Date(Date.now() - index * 90 * 60 * 1000),
-      })
-    }
-    return entries
   }
 
   private seedExceptions(): ExceptionItem[] {
@@ -252,13 +296,4 @@ export class OperationsService {
     ]
   }
 
-  private seedReportsSummary(): ReportsSummary {
-    return {
-      exceptionRatePct: 4.8,
-      openBreaks: 3,
-      reconciliationAccuracyPct: 98.9,
-      totalCases: 36,
-      totalLedgerEvents: 44,
-    }
-  }
 }

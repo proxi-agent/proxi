@@ -69,6 +69,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       CREATE TABLE IF NOT EXISTS ledger_events (
         id SERIAL PRIMARY KEY,
         type TEXT NOT NULL,
+        case_id INTEGER,
         security_id TEXT NOT NULL,
         from_holder_id TEXT,
         to_holder_id TEXT,
@@ -89,6 +90,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         holder_id TEXT,
         status TEXT NOT NULL,
         lifecycle_stage TEXT NOT NULL,
+        intake_method TEXT NOT NULL DEFAULT 'GUIDED_ENTRY',
+        assigned_reviewer_id TEXT,
+        ai_confidence NUMERIC(5,4),
+        ai_summary TEXT,
+        canonical_transfer_data JSONB NOT NULL DEFAULT '{}'::jsonb,
+        ledger_event_id INTEGER,
+        last_ai_job_id INTEGER,
         evidence_required TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
         evidence_submitted TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
         missing_evidence TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
@@ -96,6 +104,90 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         restriction_checks JSONB NOT NULL DEFAULT '[]'::jsonb,
         restriction_context JSONB NOT NULL DEFAULT '{}'::jsonb,
         failure_reason TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `)
+
+    await this.pool.query(`
+      ALTER TABLE ledger_events ADD COLUMN IF NOT EXISTS case_id INTEGER;
+      ALTER TABLE transfer_cases ADD COLUMN IF NOT EXISTS intake_method TEXT NOT NULL DEFAULT 'GUIDED_ENTRY';
+      ALTER TABLE transfer_cases ADD COLUMN IF NOT EXISTS assigned_reviewer_id TEXT;
+      ALTER TABLE transfer_cases ADD COLUMN IF NOT EXISTS ai_confidence NUMERIC(5,4);
+      ALTER TABLE transfer_cases ADD COLUMN IF NOT EXISTS ai_summary TEXT;
+      ALTER TABLE transfer_cases ADD COLUMN IF NOT EXISTS canonical_transfer_data JSONB NOT NULL DEFAULT '{}'::jsonb;
+      ALTER TABLE transfer_cases ADD COLUMN IF NOT EXISTS ledger_event_id INTEGER;
+      ALTER TABLE transfer_cases ADD COLUMN IF NOT EXISTS last_ai_job_id INTEGER;
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS transfer_case_events (
+        id SERIAL PRIMARY KEY,
+        case_id INTEGER NOT NULL REFERENCES transfer_cases(id) ON DELETE CASCADE,
+        event_type TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS transfer_documents (
+        id SERIAL PRIMARY KEY,
+        case_id INTEGER NOT NULL REFERENCES transfer_cases(id) ON DELETE CASCADE,
+        doc_type TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL DEFAULT 0,
+        storage_key TEXT NOT NULL,
+        storage_bucket TEXT,
+        upload_status TEXT NOT NULL DEFAULT 'REGISTERED',
+        checksum_sha256 TEXT,
+        uploaded_by TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS transfer_extractions (
+        id SERIAL PRIMARY KEY,
+        case_id INTEGER NOT NULL REFERENCES transfer_cases(id) ON DELETE CASCADE,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        prompt_version TEXT NOT NULL,
+        confidence NUMERIC(5,4) NOT NULL DEFAULT 0,
+        completeness_score NUMERIC(5,4) NOT NULL DEFAULT 0,
+        extraction_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        issues TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+        raw_text TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS transfer_approvals (
+        id SERIAL PRIMARY KEY,
+        case_id INTEGER NOT NULL REFERENCES transfer_cases(id) ON DELETE CASCADE,
+        action TEXT NOT NULL,
+        actor TEXT NOT NULL,
+        reason TEXT,
+        notes TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS transfer_jobs (
+        id SERIAL PRIMARY KEY,
+        case_id INTEGER NOT NULL REFERENCES transfer_cases(id) ON DELETE CASCADE,
+        job_type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'QUEUED',
+        queue_message_id TEXT,
+        payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        max_attempts INTEGER NOT NULL DEFAULT 3,
+        last_error TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );

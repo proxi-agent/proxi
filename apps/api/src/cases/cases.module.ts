@@ -10,5 +10,6 @@ import { CasesService } from './cases.service.js'
   imports: [LedgerModule, RulesModule],
   controllers: [CasesController],
   providers: [CasesService],
+  exports: [CasesService],
 })
 export class CasesModule {}
