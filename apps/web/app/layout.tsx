@@ -1,27 +1,21 @@
 import '../styles/globals.css'
 
-import { ClerkProvider } from '@clerk/nextjs'
 import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 
-import { AuthProvider } from '@/lib/auth/auth-context'
-
 export const metadata: Metadata = {
-  description: 'Role-based issuer, agent, and shareholder portals.',
+  description:
+    'Modern, AI-native stock transfer agency. Auditable, immutable shareholder infrastructure.',
   title: {
-    default: 'Proxi Portals',
-    template: '%s | Proxi Portals',
+    default: 'Proxi · Transfer Agency Platform',
+    template: '%s · Proxi',
   },
 }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang='en'>
-      <body>
-        <ClerkProvider>
-          <AuthProvider>{children}</AuthProvider>
-        </ClerkProvider>
-      </body>
+      <body>{children}</body>
     </html>
   )
 }
