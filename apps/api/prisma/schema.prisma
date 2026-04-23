@@ -1,0 +1,1118 @@
+// Proxi — Stock Transfer Agent MVP
+// ---------------------------------------------------------------------------
+// This schema models the core regulated domain of a software-first transfer
+// agency: issuers, users/roles, registered shareholders, securities and share
+// classes, an append-only share ledger, transfer requests with review, cash
+// dividend lifecycles, proxy-voting meetings/proposals/ballots/votes,
+// communications/notices, operational tasks/exceptions, and a platform-wide
+// audit trail.
+//
+// Design notes:
+// - Multi-issuer isolation: every issuer-scoped table carries `issuerId`, so
+//   queries and row-level security policies can scope by tenant cheaply.
+// - Strong relational integrity: foreign keys are declared explicitly, with
+//   `Cascade` only on children that cannot outlive their parent, and
+//   `Restrict`/`SetNull` where retention/audit considerations dominate.
+// - Enums for statuses: all lifecycle/state columns use enums so that API
+//   responses and AI surfaces can rely on a small, auditable state space.
+// - JSON fields are used sparingly, only where the shape is intentionally
+//   open-ended (addresses, recommended_actions, extraction payloads, etc.).
+// - Indexes target operational query paths (dashboards, detail pages,
+//   reviewer queues, record-date snapshots, issuer scopes).
+//
+// System-of-record vs. derived:
+// - System-of-record (authoritative, append-only or lifecycle-managed):
+//   Issuer, User, UserIssuerRole, Shareholder, ShareholderAccount, Security,
+//   ShareClass, LedgerEntry, TransferRequest, TransferReview, DividendEvent,
+//   DividendEntitlement, DividendPayment, Meeting, Proposal, Ballot, Vote,
+//   Notice, Document, AuditEvent, Task.
+// - Derived / projection-oriented (should be recomputable from the above):
+//   Holding (balance snapshot), plus any downstream analytics views. The
+//   `Holding` row is safe to truncate/rebuild from `LedgerEntry` for the same
+//   `(securityId, shareholderAccountId)` pair.
+// ---------------------------------------------------------------------------
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextSearchPostgres"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Tenancy & identity
+// ---------------------------------------------------------------------------
+
+/// A legal entity whose shareholder records Proxi maintains. Tenant root.
+model Issuer {
+  id           String        @id @default(cuid())
+  name         String
+  legalName    String
+  cik          String?       @unique
+  lei          String?       @unique
+  jurisdiction String        @default("US")
+  status       IssuerStatus  @default(ACTIVE)
+  contactEmail String?
+  website      String?
+  /// Open fields: brand assets, board of directors, transfer-restriction
+  /// policy snapshots. Keep structured data in first-class columns when it
+  /// becomes queryable.
+  metadata     Json          @default("{}")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  securities      Security[]
+  shareholders    Shareholder[]
+  accounts        ShareholderAccount[]
+  ledgerEntries   LedgerEntry[]
+  transfers       TransferRequest[]
+  dividends       DividendEvent[]
+  meetings        Meeting[]
+  notices         Notice[]
+  documents       Document[]
+  tasks           Task[]
+  auditEvents     AuditEvent[]
+  userRoles       UserIssuerRole[]
+
+  @@index([status])
+  @@index([name])
+  @@map("issuers")
+}
+
+/// Platform user (admin, reviewer, issuer contact, or investor-portal user).
+/// Identity is federated (Clerk); `externalId` is the provider user id.
+model User {
+  id          String      @id @default(cuid())
+  externalId  String      @unique
+  email       String      @unique
+  fullName    String
+  status      UserStatus  @default(ACTIVE)
+  /// Baseline role used when the user is not acting against a specific
+  /// issuer (e.g. platform staff). Per-issuer grants are in UserIssuerRole.
+  platformRole PlatformRole @default(NONE)
+  lastSeenAt  DateTime?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  issuerRoles        UserIssuerRole[]
+  submittedTransfers TransferRequest[] @relation("TransferSubmittedBy")
+  reviewedTransfers  TransferReview[]
+  assignedTasks      Task[]            @relation("TaskAssignee")
+  resolvedTasks      Task[]            @relation("TaskResolvedBy")
+  auditEvents        AuditEvent[]
+
+  @@index([status])
+  @@map("users")
+}
+
+/// Grants a user a role scoped to a single issuer. Multi-issuer isolation is
+/// enforced by checking this table in guards. The pair is unique so a user
+/// has at most one role per tenant (upgrade by updating the row).
+model UserIssuerRole {
+  id        String     @id @default(cuid())
+  userId    String
+  issuerId  String
+  role      IssuerRole
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  issuer Issuer @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, issuerId])
+  @@index([issuerId, role])
+  @@map("user_issuer_roles")
+}
+
+// ---------------------------------------------------------------------------
+// Shareholders & accounts
+// ---------------------------------------------------------------------------
+
+/// A person or entity on record with an issuer. MVP models only registered
+/// holders; beneficial/street-name holders can be added later by extending
+/// `kind` and introducing a `BeneficialLink` relation table.
+model Shareholder {
+  id             String                @id @default(cuid())
+  issuerId       String
+  kind           ShareholderKind       @default(REGISTERED)
+  legalName      String
+  classification HolderClassification  @default(RETAIL)
+  jurisdiction   String?
+  riskTier       RiskTier              @default(LOW)
+  email          String?
+  phone          String?
+  /// Last four digits of SSN/EIN — full tax identifiers live in a vault.
+  taxIdLast4     String?
+  status         ShareholderStatus     @default(ACTIVE)
+  kycStatus      KycStatus             @default(PENDING)
+  metadata       Json                  @default("{}")
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  issuer       Issuer               @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  accounts     ShareholderAccount[]
+  ballots      Ballot[]
+  entitlements DividendEntitlement[]
+
+  @@index([issuerId, status])
+  @@index([issuerId, legalName])
+  @@index([kycStatus])
+  @@map("shareholders")
+}
+
+/// A registered position record — the unit against which shares, dividends,
+/// and votes are attributed. One shareholder can own several accounts at the
+/// same issuer (e.g. IRA, joint tenancy, trust).
+model ShareholderAccount {
+  id              String                @id @default(cuid())
+  issuerId        String
+  shareholderId   String
+  /// Stable, issuer-facing account number. Unique per issuer.
+  accountNumber   String
+  registrationType RegistrationType     @default(INDIVIDUAL)
+  status          AccountStatus         @default(ACTIVE)
+  primaryEmail    String?
+  /// Mailing + tax address. Open-shaped because address formats vary by
+  /// jurisdiction, but we guarantee `country` at the service layer.
+  address         Json                  @default("{}")
+  metadata        Json                  @default("{}")
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  issuer       Issuer             @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  shareholder  Shareholder        @relation(fields: [shareholderId], references: [id], onDelete: Cascade)
+  ledgerEntries LedgerEntry[]
+  fromTransfers TransferRequest[] @relation("TransferFromAccount")
+  toTransfers   TransferRequest[] @relation("TransferToAccount")
+  holdings      Holding[]
+  ballots       Ballot[]
+  entitlements  DividendEntitlement[]
+  payments      DividendPayment[]
+
+  @@unique([issuerId, accountNumber])
+  @@index([shareholderId])
+  @@index([issuerId, status])
+  @@map("shareholder_accounts")
+}
+
+// ---------------------------------------------------------------------------
+// Securities & share classes
+// ---------------------------------------------------------------------------
+
+/// An instrument issued by an Issuer. One issuer may have many securities
+/// (common, preferred, warrants), and each Security may have one or more
+/// ShareClasses (Class A, Class B, Series Seed, etc.).
+model Security {
+  id              String         @id @default(cuid())
+  issuerId        String
+  ticker          String?
+  name            String
+  cusip           String?        @unique
+  isin            String?        @unique
+  status          SecurityStatus @default(ACTIVE)
+  currency        String         @default("USD")
+  authorizedShares BigInt        @default(0)
+  metadata        Json           @default("{}")
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  issuer        Issuer         @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  shareClasses  ShareClass[]
+  ledgerEntries LedgerEntry[]
+  transfers     TransferRequest[]
+  dividends     DividendEvent[]
+  holdings      Holding[]
+
+  @@index([issuerId, status])
+  @@index([ticker])
+  @@map("securities")
+}
+
+/// A class within a security. Ledger entries, transfers, dividends, and
+/// votes all attach at the class level so different economic rights are
+/// tracked separately.
+model ShareClass {
+  id                 String   @id @default(cuid())
+  securityId         String
+  /// Short code unique per security (e.g. "A", "B", "PREF-A").
+  code               String
+  name               String
+  parValueCents      Int      @default(0)
+  votesPerShare      Decimal  @default("1.0000") @db.Decimal(10, 4)
+  dividendEligible   Boolean  @default(true)
+  transferRestricted Boolean  @default(false)
+  metadata           Json     @default("{}")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  security      Security              @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  ledgerEntries LedgerEntry[]
+  transfers     TransferRequest[]
+  dividends     DividendEvent[]
+  holdings      Holding[]
+
+  @@unique([securityId, code])
+  @@map("share_classes")
+}
+
+// ---------------------------------------------------------------------------
+// Ledger (system-of-record) + derived holdings
+// ---------------------------------------------------------------------------
+
+/// Append-only share-movement ledger. Every balance change must be expressed
+/// as one or more LedgerEntry rows; there is no direct balance mutation. For
+/// transfers we write two rows (debit the sender, credit the receiver) in a
+/// single transaction and correlate them via `correlationId`.
+///
+/// `quantityDelta` is always signed from the perspective of
+/// `shareholderAccountId`: positive for issuance / transfer-in / positive
+/// adjustments, negative for cancellation / transfer-out / negative
+/// adjustments.
+model LedgerEntry {
+  id                   String          @id @default(cuid())
+  issuerId             String
+  securityId           String
+  shareClassId         String
+  /// The account whose balance is being affected.
+  shareholderAccountId String
+  type                 LedgerEntryType
+  quantityDelta        BigInt
+  /// Opaque ref to the source event (transfer id, dividend id, external
+  /// corporate-action id). Combined with `sourceType`, this lets us trace
+  /// every share movement back to its originating business action.
+  sourceType           LedgerSourceType
+  sourceRef            String?
+  /// Shared id across the two halves of a transfer (and any future multi-leg
+  /// adjustments). Useful for reconciliation and UI grouping.
+  correlationId        String?
+  /// Effective/settlement timestamp (may differ from createdAt for backdated
+  /// corrections). Used by holdings-as-of computations.
+  occurredAt           DateTime        @default(now())
+  /// Optional plain-text reason for adjustments/cancellations.
+  reason               String?
+  /// Author of the entry — a User id when applicable, or a system actor id
+  /// (e.g. "system:dividend-runner") for automated flows.
+  actorId              String?
+  metadata             Json            @default("{}")
+  createdAt            DateTime        @default(now())
+
+  issuer        Issuer             @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  security      Security           @relation(fields: [securityId], references: [id], onDelete: Restrict)
+  shareClass    ShareClass         @relation(fields: [shareClassId], references: [id], onDelete: Restrict)
+  account       ShareholderAccount @relation(fields: [shareholderAccountId], references: [id], onDelete: Restrict)
+
+  @@index([issuerId, occurredAt])
+  @@index([securityId, shareClassId, occurredAt])
+  @@index([shareholderAccountId, occurredAt])
+  @@index([sourceType, sourceRef])
+  @@index([correlationId])
+  @@map("ledger_entries")
+}
+
+/// Derived balance per (account, security, share class). This is a
+/// projection of `LedgerEntry` maintained transactionally on each write; it
+/// is safe to rebuild from the ledger at any time (`proj:holdings` job).
+model Holding {
+  id                   String   @id @default(cuid())
+  shareholderAccountId String
+  securityId           String
+  shareClassId         String
+  quantity             BigInt   @default(0)
+  /// Rebuild checkpoint for projection correctness (last ledger entry id
+  /// included in the current `quantity`).
+  lastLedgerEntryId    String?
+  updatedAt            DateTime @updatedAt
+
+  account    ShareholderAccount @relation(fields: [shareholderAccountId], references: [id], onDelete: Cascade)
+  security   Security           @relation(fields: [securityId], references: [id], onDelete: Cascade)
+  shareClass ShareClass         @relation(fields: [shareClassId], references: [id], onDelete: Cascade)
+
+  @@unique([shareholderAccountId, securityId, shareClassId])
+  @@index([securityId, shareClassId])
+  @@map("holdings")
+}
+
+// ---------------------------------------------------------------------------
+// Transfers
+// ---------------------------------------------------------------------------
+
+/// A request to move shares between two accounts (or to issue/cancel in the
+/// degenerate case). Lifecycle is advanced via `state` and mirrored in
+/// TransferReview decisions. Final settlement writes paired LedgerEntry rows
+/// inside a DB transaction, sets `settledAt`, and emits an AuditEvent.
+model TransferRequest {
+  id                    String               @id @default(cuid())
+  /// Short, customer-facing identifier (e.g. "TR-2026-000123"). Unique per
+  /// issuer to keep support workflows ergonomic.
+  reference             String
+  issuerId              String
+  securityId            String
+  shareClassId          String
+  fromAccountId         String?
+  toAccountId           String?
+  quantity              BigInt
+  kind                  TransferKind         @default(TRANSFER)
+  intakeMethod          TransferIntakeMethod @default(GUIDED_ENTRY)
+  state                 TransferState        @default(DRAFT)
+  /// Coarse-grained bucket used by the admin queue (e.g. INTAKE, REVIEW,
+  /// APPROVAL, SETTLEMENT). Kept separate from `state` so the UI doesn't
+  /// need to map a large enum into a lane.
+  lifecycleStage        TransferLifecycleStage @default(INTAKE)
+  priority              TransferPriority     @default(STANDARD)
+  submittedById         String?
+  assignedReviewerId    String?
+  aiConfidence          Decimal?             @db.Decimal(5, 4)
+  aiSummary             String?
+  canonicalData         Json                 @default("{}")
+  evidenceRequired      String[]             @default([])
+  evidenceSubmitted     String[]             @default([])
+  missingEvidence       String[]             @default([])
+  restrictionChecks     Json                 @default("[]")
+  blockingReasons       String[]             @default([])
+  failureReason         String?
+  /// External-system idempotency key (e.g. investor-portal submission id).
+  idempotencyKey        String?              @unique
+  submittedAt           DateTime?
+  settledAt             DateTime?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  issuer       Issuer               @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  security     Security             @relation(fields: [securityId], references: [id], onDelete: Restrict)
+  shareClass   ShareClass           @relation(fields: [shareClassId], references: [id], onDelete: Restrict)
+  fromAccount  ShareholderAccount?  @relation("TransferFromAccount", fields: [fromAccountId], references: [id], onDelete: SetNull)
+  toAccount    ShareholderAccount?  @relation("TransferToAccount",   fields: [toAccountId],   references: [id], onDelete: SetNull)
+  submittedBy  User?                @relation("TransferSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  reviews      TransferReview[]
+  documents    Document[]
+
+  @@unique([issuerId, reference])
+  @@index([issuerId, state])
+  @@index([issuerId, lifecycleStage])
+  @@index([issuerId, assignedReviewerId])
+  @@index([securityId, shareClassId])
+  @@index([fromAccountId])
+  @@index([toAccountId])
+  @@index([createdAt])
+  @@map("transfer_requests")
+}
+
+/// An approval/rejection/request-for-info decision on a transfer, in order.
+/// Insert-only — retracting a decision means appending a compensating row.
+model TransferReview {
+  id          String              @id @default(cuid())
+  transferId  String
+  action      TransferReviewAction
+  reviewerId  String
+  reason      String?
+  notes       String?
+  createdAt   DateTime            @default(now())
+
+  transfer TransferRequest @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  reviewer User            @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
+
+  @@index([transferId, createdAt])
+  @@index([reviewerId, createdAt])
+  @@map("transfer_reviews")
+}
+
+// ---------------------------------------------------------------------------
+// Dividends
+// ---------------------------------------------------------------------------
+
+/// Corporate action: a dividend declaration. Entitlements are materialized
+/// from the holdings snapshot on `recordDate` and payments are reconciled on
+/// or after `paymentDate`.
+model DividendEvent {
+  id                     String              @id @default(cuid())
+  issuerId               String
+  securityId             String
+  /// When null, the dividend applies to every eligible class of the security.
+  shareClassId           String?
+  kind                   DividendKind        @default(CASH)
+  status                 DividendStatus      @default(DRAFT)
+  currency               String              @default("USD")
+  ratePerShareCents      Int
+  declarationDate        DateTime            @db.Date
+  recordDate             DateTime            @db.Date
+  exDate                 DateTime?           @db.Date
+  paymentDate            DateTime            @db.Date
+  totalDistributionCents BigInt              @default(0)
+  description            String?
+  metadata               Json                @default("{}")
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+
+  issuer       Issuer                @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  security     Security              @relation(fields: [securityId], references: [id], onDelete: Restrict)
+  shareClass   ShareClass?           @relation(fields: [shareClassId], references: [id], onDelete: SetNull)
+  entitlements DividendEntitlement[]
+  payments     DividendPayment[]
+
+  @@index([issuerId, paymentDate])
+  @@index([issuerId, status])
+  @@index([recordDate])
+  @@map("dividend_events")
+}
+
+/// Snapshot of an account's entitlement on the record date. This is
+/// system-of-record (we do not re-derive after materialization) so that
+/// historical dividend runs remain auditable even if later ledger
+/// corrections change current balances.
+model DividendEntitlement {
+  id               String                   @id @default(cuid())
+  dividendEventId  String
+  shareholderId    String
+  accountId        String
+  sharesHeld       BigInt
+  amountCents      BigInt
+  status           DividendEntitlementStatus @default(PENDING)
+  metadata         Json                     @default("{}")
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  dividendEvent DividendEvent      @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+  shareholder   Shareholder        @relation(fields: [shareholderId], references: [id], onDelete: Restrict)
+  account       ShareholderAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  payments      DividendPayment[]
+
+  @@unique([dividendEventId, accountId])
+  @@index([dividendEventId, status])
+  @@index([accountId])
+  @@map("dividend_entitlements")
+}
+
+/// Disbursement attempt for an entitlement. Modeled separately so retries,
+/// partial payments, and reversals can be recorded without destroying the
+/// entitlement snapshot.
+model DividendPayment {
+  id             String                 @id @default(cuid())
+  entitlementId  String
+  dividendEventId String
+  accountId      String
+  amountCents    BigInt
+  method         PaymentMethod          @default(ACH)
+  status         PaymentStatus          @default(PENDING)
+  externalRef    String?
+  failureReason  String?
+  paidAt         DateTime?
+  metadata       Json                   @default("{}")
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  entitlement   DividendEntitlement @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+  dividendEvent DividendEvent       @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+  account       ShareholderAccount  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([dividendEventId, status])
+  @@index([accountId, createdAt])
+  @@map("dividend_payments")
+}
+
+// ---------------------------------------------------------------------------
+// Meetings, proposals, ballots, votes
+// ---------------------------------------------------------------------------
+
+/// Annual or special meeting of shareholders. Voting eligibility is derived
+/// from holdings as of `recordDate`.
+model Meeting {
+  id           String        @id @default(cuid())
+  issuerId     String
+  kind         MeetingKind   @default(ANNUAL)
+  title        String
+  status       MeetingStatus @default(DRAFT)
+  scheduledAt  DateTime
+  recordDate   DateTime      @db.Date
+  quorumPct    Decimal       @default("50.00") @db.Decimal(5, 2)
+  location     String?
+  virtualUrl   String?
+  description  String?
+  metadata     Json          @default("{}")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  issuer    Issuer     @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  proposals Proposal[]
+  ballots   Ballot[]
+
+  @@index([issuerId, scheduledAt])
+  @@index([status])
+  @@map("meetings")
+}
+
+/// A single resolution up for vote at a meeting. `requiredPct` encodes the
+/// threshold (ordinary majority, supermajority, etc.).
+model Proposal {
+  id                   String         @id @default(cuid())
+  meetingId            String
+  /// Short code unique within the meeting (e.g. "P1", "ELECT-BOARD").
+  code                 String
+  title                String
+  description          String?
+  kind                 ProposalKind   @default(ORDINARY)
+  requiredPct          Decimal        @default("50.00") @db.Decimal(5, 2)
+  status               ProposalStatus @default(DRAFT)
+  sortOrder            Int            @default(0)
+  boardRecommendation  BoardRecommendation?
+  metadata             Json           @default("{}")
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  votes   Vote[]
+
+  @@unique([meetingId, code])
+  @@index([meetingId, sortOrder])
+  @@map("proposals")
+}
+
+/// A voting packet issued to a shareholder account for a specific meeting.
+/// One ballot per (meeting, account). Individual proposal choices are rows
+/// in `Vote` keyed off this ballot.
+model Ballot {
+  id              String        @id @default(cuid())
+  meetingId       String
+  shareholderId   String
+  accountId       String
+  /// Eligible shares on the record date — frozen here so the math is stable
+  /// even if the account's current balance changes later.
+  sharesEligible  BigInt
+  status          BallotStatus  @default(ISSUED)
+  controlNumber   String        @unique
+  deliveryMethod  DeliveryMethod @default(EMAIL)
+  submittedAt     DateTime?
+  metadata        Json          @default("{}")
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  meeting     Meeting            @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  shareholder Shareholder        @relation(fields: [shareholderId], references: [id], onDelete: Restrict)
+  account     ShareholderAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  votes       Vote[]
+
+  @@unique([meetingId, accountId])
+  @@index([meetingId, status])
+  @@index([shareholderId])
+  @@map("ballots")
+}
+
+/// A single choice cast on a specific proposal within a ballot. `sharesCast`
+/// lets us represent split voting for institutional holders that vote for
+/// multiple beneficial owners through one registered account.
+model Vote {
+  id         String     @id @default(cuid())
+  ballotId   String
+  proposalId String
+  choice     VoteChoice
+  sharesCast BigInt
+  castAt     DateTime   @default(now())
+  metadata   Json       @default("{}")
+
+  ballot   Ballot   @relation(fields: [ballotId], references: [id], onDelete: Cascade)
+  proposal Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  /// One vote per (ballot, proposal, choice) — a holder may split shares
+  /// across choices on the same proposal, so the uniqueness is on the
+  /// (ballot, proposal, choice) triple rather than (ballot, proposal).
+  @@unique([ballotId, proposalId, choice])
+  @@index([proposalId, choice])
+  @@map("votes")
+}
+
+// ---------------------------------------------------------------------------
+// Notices & documents
+// ---------------------------------------------------------------------------
+
+/// Shareholder-facing communication (proxy material, dividend notice, tax
+/// form, generic notice). The actual rendered file (if any) lives on
+/// Document; Notice carries the structured record of the communication.
+model Notice {
+  id                String        @id @default(cuid())
+  issuerId          String
+  kind              NoticeKind    @default(GENERAL)
+  subject           String
+  body              String
+  audience          NoticeAudience @default(ALL)
+  status            NoticeStatus  @default(DRAFT)
+  relatedEntityType String?
+  relatedEntityId   String?
+  publishedAt       DateTime?
+  metadata          Json          @default("{}")
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  issuer    Issuer     @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  documents Document[]
+
+  @@index([issuerId, status])
+  @@index([relatedEntityType, relatedEntityId])
+  @@map("notices")
+}
+
+/// File metadata only — bytes live in object storage at `storageKey`. Can be
+/// attached to a Transfer (supporting evidence) or a Notice (rendered PDF),
+/// and loosely associated to anything else via `relatedEntityType/Id`.
+model Document {
+  id                String          @id @default(cuid())
+  issuerId          String
+  transferId        String?
+  noticeId          String?
+  kind              DocumentKind
+  fileName          String
+  contentType       String
+  sizeBytes         Int             @default(0)
+  storageBucket     String?
+  storageKey        String
+  checksumSha256    String?
+  uploadStatus      UploadStatus    @default(REGISTERED)
+  uploadedById      String?
+  relatedEntityType String?
+  relatedEntityId   String?
+  metadata          Json            @default("{}")
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  issuer   Issuer           @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  transfer TransferRequest? @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  notice   Notice?          @relation(fields: [noticeId], references: [id], onDelete: Cascade)
+
+  @@index([issuerId, kind])
+  @@index([transferId])
+  @@index([noticeId])
+  @@index([relatedEntityType, relatedEntityId])
+  @@map("documents")
+}
+
+// ---------------------------------------------------------------------------
+// Audit & operational tasks
+// ---------------------------------------------------------------------------
+
+/// Append-only structured event stream. Every sensitive action writes one
+/// row; queries filter by (entityType, entityId) for per-case timelines and
+/// by (issuerId, occurredAt) for tenant-wide activity feeds. This table is
+/// also the grounding source for AI copilots and anomaly detectors.
+///
+/// There are no update/delete routes in services for this model.
+model AuditEvent {
+  id         BigInt         @id @default(autoincrement())
+  occurredAt DateTime       @default(now())
+  issuerId   String?
+  actorId    String?
+  actorType  ActorType      @default(USER)
+  actorRole  String?
+  action     String
+  severity   AuditSeverity  @default(INFO)
+  entityType String
+  entityId   String
+  ip         String?
+  userAgent  String?
+  metadata   Json           @default("{}")
+
+  issuer Issuer? @relation(fields: [issuerId], references: [id], onDelete: SetNull)
+  user   User?   @relation(fields: [actorId],  references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId, occurredAt])
+  @@index([issuerId, occurredAt])
+  @@index([action])
+  @@index([occurredAt])
+  @@map("audit_events")
+}
+
+/// Operational work item or exception surfaced to the admin queue. Sources
+/// range from explicit human creation to automated rules (restriction
+/// checks, KYC expiry, dividend reconciliation breaks).
+model Task {
+  id                 String         @id @default(cuid())
+  issuerId           String?
+  type               TaskType
+  source             TaskSource     @default(SYSTEM)
+  priority           TaskPriority   @default(MEDIUM)
+  severity           TaskSeverity   @default(INFO)
+  status             TaskStatus     @default(OPEN)
+  title              String
+  description        String?
+  assigneeId         String?
+  resolvedById       String?
+  relatedEntityType  String?
+  relatedEntityId    String?
+  dueAt              DateTime?
+  resolvedAt         DateTime?
+  /// Structured `{ label, href, action }` hints rendered in the copilot UI.
+  recommendedActions Json           @default("[]")
+  metadata           Json           @default("{}")
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  issuer     Issuer? @relation(fields: [issuerId],    references: [id], onDelete: SetNull)
+  assignee   User?   @relation("TaskAssignee",        fields: [assigneeId],    references: [id], onDelete: SetNull)
+  resolvedBy User?   @relation("TaskResolvedBy",      fields: [resolvedById],  references: [id], onDelete: SetNull)
+
+  @@index([issuerId, status])
+  @@index([status, priority, dueAt])
+  @@index([assigneeId, status])
+  @@index([relatedEntityType, relatedEntityId])
+  @@map("tasks")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum IssuerStatus {
+  ACTIVE
+  ONBOARDING
+  SUSPENDED
+  TERMINATED
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+}
+
+/// Platform-wide role. Per-tenant access is granted via UserIssuerRole.
+enum PlatformRole {
+  NONE
+  OPERATIONS
+  COMPLIANCE
+  SUPPORT
+  ADMIN
+}
+
+/// Scoped role for a single issuer tenant.
+enum IssuerRole {
+  ISSUER_ADMIN
+  ISSUER_OPERATOR
+  ISSUER_VIEWER
+  REVIEWER
+  INVESTOR
+}
+
+enum ShareholderKind {
+  REGISTERED
+  BENEFICIAL
+  NOMINEE
+}
+
+enum HolderClassification {
+  RETAIL
+  ACCREDITED
+  INSTITUTIONAL
+  INSIDER
+  EMPLOYEE
+}
+
+enum RiskTier {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ShareholderStatus {
+  ACTIVE
+  INACTIVE
+  DECEASED
+  LOST
+}
+
+enum KycStatus {
+  PENDING
+  IN_REVIEW
+  CLEARED
+  REJECTED
+  EXPIRED
+}
+
+enum RegistrationType {
+  INDIVIDUAL
+  JOINT_TENANTS
+  TENANTS_IN_COMMON
+  TRUST
+  ENTITY
+  RETIREMENT
+  CUSTODIAN
+}
+
+enum AccountStatus {
+  ACTIVE
+  FROZEN
+  CLOSED
+}
+
+enum SecurityStatus {
+  ACTIVE
+  DELISTED
+  SUSPENDED
+}
+
+enum LedgerEntryType {
+  ISSUE
+  CANCEL
+  TRANSFER_IN
+  TRANSFER_OUT
+  ADJUSTMENT_INCREASE
+  ADJUSTMENT_DECREASE
+  STOCK_SPLIT
+  REVERSE_SPLIT
+  DIVIDEND_IN_KIND
+}
+
+enum LedgerSourceType {
+  TRANSFER_REQUEST
+  CORPORATE_ACTION
+  ADMIN_ADJUSTMENT
+  ISSUANCE_GRANT
+  CANCELLATION
+  DIVIDEND_EVENT
+  MIGRATION
+}
+
+enum TransferKind {
+  TRANSFER
+  ISSUANCE
+  CANCELLATION
+  ADJUSTMENT
+}
+
+enum TransferIntakeMethod {
+  GUIDED_ENTRY
+  DOCUMENT_UPLOAD
+  API
+  LEGACY_IMPORT
+}
+
+enum TransferState {
+  DRAFT
+  SUBMITTED
+  UNDER_REVIEW
+  NEEDS_INFO
+  APPROVED
+  REJECTED
+  SETTLED
+  CANCELLED
+}
+
+enum TransferLifecycleStage {
+  INTAKE
+  REVIEW
+  APPROVAL
+  SETTLEMENT
+  CLOSED
+}
+
+enum TransferPriority {
+  LOW
+  STANDARD
+  HIGH
+  URGENT
+}
+
+enum TransferReviewAction {
+  APPROVE
+  REJECT
+  REQUEST_INFO
+  ESCALATE
+  COMMENT
+  WITHDRAW
+}
+
+enum DividendKind {
+  CASH
+  STOCK
+  SPECIAL
+  RETURN_OF_CAPITAL
+}
+
+enum DividendStatus {
+  DRAFT
+  DECLARED
+  RECORD_DATE_SET
+  PAYABLE
+  PAID
+  CANCELLED
+}
+
+enum DividendEntitlementStatus {
+  PENDING
+  HELD
+  PAID
+  FAILED
+  REVERSED
+}
+
+enum PaymentMethod {
+  ACH
+  WIRE
+  CHECK
+  STOCK
+  INTERNAL_CREDIT
+}
+
+enum PaymentStatus {
+  PENDING
+  SENT
+  SETTLED
+  FAILED
+  RETURNED
+  CANCELLED
+}
+
+enum MeetingKind {
+  ANNUAL
+  SPECIAL
+  WRITTEN_CONSENT
+}
+
+enum MeetingStatus {
+  DRAFT
+  SCHEDULED
+  OPEN
+  CLOSED
+  CERTIFIED
+  CANCELLED
+}
+
+enum ProposalKind {
+  ORDINARY
+  SPECIAL
+  ADVISORY
+  ELECTION
+}
+
+enum ProposalStatus {
+  DRAFT
+  OPEN
+  PASSED
+  FAILED
+  WITHDRAWN
+}
+
+enum BoardRecommendation {
+  FOR
+  AGAINST
+  ABSTAIN
+  NONE
+}
+
+enum BallotStatus {
+  ISSUED
+  DELIVERED
+  OPENED
+  SUBMITTED
+  VOIDED
+}
+
+enum DeliveryMethod {
+  EMAIL
+  POSTAL
+  PORTAL
+  BROKER
+}
+
+enum VoteChoice {
+  FOR
+  AGAINST
+  ABSTAIN
+  WITHHOLD
+}
+
+enum NoticeKind {
+  GENERAL
+  DIVIDEND
+  MEETING
+  REGULATORY
+  TAX
+  TRANSFER
+}
+
+enum NoticeAudience {
+  ALL
+  HOLDERS_OF_SECURITY
+  SINGLE_SHAREHOLDER
+  INTERNAL
+}
+
+enum NoticeStatus {
+  DRAFT
+  SCHEDULED
+  SENT
+  CANCELLED
+}
+
+enum DocumentKind {
+  TRANSFER_EVIDENCE
+  MEDALLION
+  W9
+  W8BEN
+  DEATH_CERTIFICATE
+  TRUST_AGREEMENT
+  POWER_OF_ATTORNEY
+  PROXY_MATERIAL
+  TAX_FORM
+  NOTICE_RENDER
+  OTHER
+}
+
+enum UploadStatus {
+  REGISTERED
+  UPLOADING
+  UPLOADED
+  VERIFIED
+  REJECTED
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+  INTEGRATION
+}
+
+enum AuditSeverity {
+  INFO
+  NOTICE
+  WARN
+  CRITICAL
+}
+
+enum TaskType {
+  TRANSFER_REVIEW
+  RESTRICTION_EXCEPTION
+  KYC_REFRESH
+  DIVIDEND_RECONCILIATION
+  MEETING_PREP
+  DOCUMENT_REVIEW
+  DATA_QUALITY
+  GENERIC
+}
+
+enum TaskSource {
+  SYSTEM
+  HUMAN
+  AI
+  INTEGRATION
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TaskSeverity {
+  INFO
+  WARN
+  CRITICAL
+}
+
+enum TaskStatus {
+  OPEN
+  IN_PROGRESS
+  BLOCKED
+  RESOLVED
+  CANCELLED
+}

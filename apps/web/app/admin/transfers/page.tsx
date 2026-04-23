@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { Icon } from '@/components/icon'
 import { TransferStatusBadge } from '@/components/transfer'
-import { Avatar, Badge, Confidence, PageHeader, Panel } from '@/components/ui'
+import { Avatar, Badge, Confidence, EmptyState, PageHeader, Panel } from '@/components/ui'
 import { TRANSFER_TYPE_LABEL } from '@/lib/transfer/copy'
 import { listTransfers } from '@/lib/transfer/mock'
 
@@ -40,7 +40,9 @@ export default function AdminTransfersPage() {
         <div className='flex flex-col gap-5'>
           <Panel subtitle='Escalated cases and high-severity exceptions across all issuers' title='High-risk transfers'>
             {flagged.length === 0 ? (
-              <div className='text-[13px] text-ink-500'>No high-risk transfers at the moment. The last 30 days have been clean.</div>
+              <EmptyState icon='shield-check' title='No high-risk transfers'>
+                Every request in the last 30 days cleared risk checks without escalation.
+              </EmptyState>
             ) : (
               <table className='table'>
                 <thead>
@@ -139,7 +141,11 @@ export default function AdminTransfersPage() {
                   </Link>
                 </li>
               ))}
-              {needsPolicy.length === 0 && <li className='text-[13px] text-ink-500'>No policy exceptions in the last 30 days.</li>}
+              {needsPolicy.length === 0 && (
+                <EmptyState icon='scroll' title='Clean policy posture'>
+                  No documented exceptions to standing policy in the last 30 days.
+                </EmptyState>
+              )}
             </ul>
           </Panel>
 

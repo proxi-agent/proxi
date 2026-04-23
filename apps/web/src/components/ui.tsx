@@ -68,9 +68,12 @@ export function Confidence({ value }: { value: number }) {
   return (
     <span className='confidence'>
       <span className='confidence-bar'>
-        <span className={`confidence-fill ${level}`} style={{ width: `${Math.min(100, Math.max(4, value))}%` }} />
+        <span
+          className={`confidence-fill ${level}`}
+          style={{ transition: 'width 300ms ease', width: `${Math.min(100, Math.max(4, value))}%` }}
+        />
       </span>
-      <span className='num font-medium text-ink-800'>{value}%</span>
+      <span className='num font-semibold text-ink-800'>{value}%</span>
     </span>
   )
 }
@@ -130,17 +133,19 @@ export function Metric({
             <span
               className={
                 trend === 'up'
-                  ? 'trend-up flex items-center gap-1'
+                  ? 'trend-up inline-flex items-center gap-1'
                   : trend === 'down'
-                    ? 'trend-down flex items-center gap-1'
-                    : 'flex items-center gap-1'
+                    ? 'trend-down inline-flex items-center gap-1'
+                    : 'inline-flex items-center gap-1'
               }
             >
               {trend === 'up' && <Icon name='trending-up' size={12} />}
               {trend === 'down' && <Icon name='trending-down' size={12} />}
+              {trend === 'flat' && <span aria-hidden className='h-[1.5px] w-2.5 rounded-full bg-ink-300' />}
               <span className='num font-semibold'>{delta}</span>
             </span>
           )}
+          {delta && helper && <span className='text-ink-300'>·</span>}
           {helper && <span>{helper}</span>}
         </span>
       )}
@@ -210,12 +215,15 @@ export function EmptyState({
 }) {
   return (
     <div className='empty'>
-      <div className='mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-surface text-ink-500 border border-line'>
+      <div
+        aria-hidden
+        className='mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-line bg-surface text-ink-400 shadow-xs'
+      >
         <Icon name={icon} size={18} />
       </div>
       <div className='empty-title'>{title}</div>
-      {children && <div className='mt-1 text-[13px] text-ink-500 max-w-md mx-auto'>{children}</div>}
-      {action && <div className='mt-3 flex justify-center'>{action}</div>}
+      {children && <div className='mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-ink-500'>{children}</div>}
+      {action && <div className='mt-4 flex justify-center'>{action}</div>}
     </div>
   )
 }

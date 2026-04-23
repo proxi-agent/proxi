@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { AppShell } from '@/components/app-shell'
 import { Icon } from '@/components/icon'
 import { TransferStatusBadge } from '@/components/transfer'
-import { Badge, PageHeader, Panel } from '@/components/ui'
+import { Badge, EmptyState, PageHeader, Panel } from '@/components/ui'
 import { STATUS_META, TRANSFER_TYPE_LABEL } from '@/lib/transfer/copy'
 import { listTransfers } from '@/lib/transfer/mock'
 
@@ -50,7 +50,18 @@ export default function InvestorTransfersPage() {
       <div className='flex flex-col gap-5'>
         <Panel subtitle='Transfers that are moving through review or awaiting your action' title='In progress'>
           {active.length === 0 ? (
-            <div className='text-[13px] text-ink-500'>You have no active transfers.</div>
+            <EmptyState
+              action={
+                <Link className='btn btn-brand btn-sm' href='/investor/transfer/new'>
+                  <Icon name='arrow-left-right' size={13} />
+                  Start a transfer
+                </Link>
+              }
+              icon='arrow-left-right'
+              title='No transfers in progress'
+            >
+              When you initiate a transfer, it will appear here with a live stage tracker and expected turnaround.
+            </EmptyState>
           ) : (
             <table className='table'>
               <thead>

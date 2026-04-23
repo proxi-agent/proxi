@@ -21,13 +21,13 @@ function NavSidebar({ portal }: { portal: PortalId }) {
 
   return (
     <aside className='app-sidebar'>
-      <div className='nav-brand'>
+      <Link className='nav-brand transition-colors hover:bg-surface-2' href='/'>
         <div className='nav-brand-mark'>Px</div>
-        <div className='flex flex-col leading-tight'>
+        <div className='flex min-w-0 flex-col leading-tight'>
           <span className='nav-brand-name'>Proxi</span>
-          <span className='nav-brand-tag'>Transfer platform</span>
+          <span className='nav-brand-tag'>Transfer Platform</span>
         </div>
-      </div>
+      </Link>
 
       <div className='flex-1 overflow-y-auto py-2'>
         {config.sections.map(section => (
@@ -70,55 +70,70 @@ function TopBar({ breadcrumbs, portal }: { breadcrumbs?: Array<{ label: string; 
   const config = PORTALS[portal]
   return (
     <div className='app-topbar'>
-      <div className='flex items-center gap-3 text-[12.5px] text-ink-500'>
-        <span className='font-semibold text-ink-700'>{PORTAL_META[portal].name}</span>
+      <div className='flex items-center gap-2.5 text-[12.5px] text-ink-500'>
+        <span className={`portal-dot ${portal}`} />
+        <span className='font-semibold text-ink-800'>{PORTAL_META[portal].name}</span>
         {breadcrumbs?.map((crumb, idx) => (
-          <span className='flex items-center gap-3' key={`${crumb.label}-${idx}`}>
-            <Icon name='chevron-right' size={13} />
+          <span className='flex items-center gap-2.5' key={`${crumb.label}-${idx}`}>
+            <Icon className='text-ink-300' name='chevron-right' size={12} />
             {crumb.href ? (
-              <Link className='hover:text-ink-800' href={crumb.href}>
+              <Link className='text-ink-500 transition-colors hover:text-ink-800' href={crumb.href}>
                 {crumb.label}
               </Link>
             ) : (
-              <span className='text-ink-800'>{crumb.label}</span>
+              <span className='font-medium text-ink-800'>{crumb.label}</span>
             )}
           </span>
         ))}
       </div>
 
-      <div className='ml-auto flex items-center gap-3'>
-        <div className='search w-[280px]'>
+      <div className='ml-auto flex items-center gap-2'>
+        <div className='search w-[300px]'>
           <span className='search-icon'>
             <Icon name='search' size={14} />
           </span>
-          <input className='input h-[32px]' placeholder='Search accounts, cases, CUSIP…' />
+          <input className='input h-[32px]' placeholder='Search holders, cases, CUSIP, CIK…' />
+          <span
+            className='pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[10.5px] font-mono uppercase tracking-wider text-ink-400'
+            style={{ letterSpacing: '0.04em' }}
+          >
+            ⌘K
+          </span>
         </div>
         <button className='btn btn-secondary btn-sm' type='button'>
           <Icon name='sparkles' size={14} />
           Ask Proxi
-          <span className='kbd ml-1'>⌘K</span>
         </button>
-        <button className='btn btn-ghost btn-icon btn-sm' type='button'>
+        <div className='divider-vert mx-1' />
+        <button aria-label='Inbox' className='btn btn-ghost btn-icon btn-sm relative' type='button'>
           <Icon name='inbox' size={15} />
+          <span
+            aria-hidden
+            className='absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand-500 ring-2 ring-surface'
+          />
         </button>
-        <button className='btn btn-ghost btn-icon btn-sm' type='button'>
+        <button aria-label='Settings' className='btn btn-ghost btn-icon btn-sm' type='button'>
           <Icon name='settings' size={15} />
         </button>
-        <div className='flex items-center gap-2 pl-2 border-l border-line'>
+        <button
+          className='ml-1 flex items-center gap-2.5 rounded-md py-1 pl-1 pr-2 transition-colors hover:bg-surface-sunken'
+          type='button'
+        >
           <div
             aria-hidden
-            className='flex h-7 w-7 items-center justify-center rounded-full bg-ink-900 text-[11px] font-semibold text-white'
+            className='flex h-7 w-7 items-center justify-center rounded-full bg-ink-900 text-[11px] font-semibold text-white ring-1 ring-inset ring-white/10'
           >
             {config.user.initials}
           </div>
           <div className='hidden flex-col leading-tight md:flex'>
-            <span className='text-[12.5px] font-semibold text-ink-900'>{config.user.name}</span>
-            <span className='text-[11px] text-ink-500'>
+            <span className='text-left text-[12.5px] font-semibold text-ink-900'>{config.user.name}</span>
+            <span className='text-left text-[11px] text-ink-500'>
               {config.role}
               {config.company ? ` · ${config.company}` : ''}
             </span>
           </div>
-        </div>
+          <Icon className='hidden text-ink-400 md:block' name='chevron-right' size={12} />
+        </button>
       </div>
     </div>
   )

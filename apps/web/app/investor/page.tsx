@@ -92,7 +92,7 @@ export default function InvestorDashboard() {
           </>
         }
         eyebrow='Good afternoon, Eleanor'
-        subtitle='Everything about your holdings, requests, and communications — auditable and timestamped.'
+        subtitle='Your holdings, requests, and communications — timestamped, immutable, and available in one place.'
         title='Investor dashboard'
       />
 

@@ -14,7 +14,7 @@ import {
   TransferSummaryCard,
   TurnaroundEstimateCard,
 } from '@/components/transfer'
-import { Badge, PageHeader, Panel } from '@/components/ui'
+import { Badge, EmptyState, PageHeader, Panel } from '@/components/ui'
 import { TRANSFER_TYPE_LABEL } from '@/lib/transfer/copy'
 import { getTransfer } from '@/lib/transfer/mock'
 
@@ -203,9 +203,10 @@ export default async function InvestorTransferDetail({ params }: { params: Promi
 
             <Panel subtitle='Messages between you and the transfer-agent team about this case' title='Messages'>
               {transfer.reviewerNotes.length === 0 ? (
-                <div className='text-[13px] text-ink-500'>
-                  No messages yet. You&apos;ll see requests for additional information here, and a notification will be sent to your inbox.
-                </div>
+                <EmptyState icon='message-square' title='No messages yet'>
+                  If the transfer-agent team needs clarification or additional documents, their requests will appear here — and we&apos;ll notify
+                  you in your inbox.
+                </EmptyState>
               ) : (
                 <ul className='flex flex-col gap-3'>
                   {transfer.reviewerNotes.map(n => (
