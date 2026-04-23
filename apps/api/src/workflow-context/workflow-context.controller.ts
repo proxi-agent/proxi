@@ -1,6 +1,7 @@
 import { Controller, Get, Param } from '@nestjs/common'
 
 import { Permissions } from '../auth/permissions.decorator.js'
+import { Scope } from '../auth/scope.decorator.js'
 
 import { WorkflowContextService } from './workflow-context.service.js'
 import type { WorkflowContextBundle } from './workflow-context.types.js'
@@ -17,18 +18,21 @@ export class WorkflowContextController {
 
   @Permissions('transfer.view')
   @Get('transfer/:id')
+  @Scope({ entityRule: { entity: 'transfer' } })
   transfer(@Param('id') id: string): Promise<WorkflowContextBundle> {
     return this.service.forTransfer(id)
   }
 
   @Permissions('report.view')
   @Get('dividend/:id')
+  @Scope({ entityRule: { entity: 'dividend' } })
   dividend(@Param('id') id: string): Promise<WorkflowContextBundle> {
     return this.service.forDividend(id)
   }
 
   @Permissions('report.view')
   @Get('meeting/:id')
+  @Scope({ entityRule: { entity: 'meeting' } })
   meeting(@Param('id') id: string): Promise<WorkflowContextBundle> {
     return this.service.forMeeting(id)
   }

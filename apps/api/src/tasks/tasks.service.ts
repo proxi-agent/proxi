@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 
+import { AuditActions } from '../audit/audit.events.js'
 import { AuditService } from '../audit/audit.service.js'
 import type { ActorContext } from '../common/actor.js'
 import type { Queryable } from '../database/database.service.js'
@@ -60,6 +61,14 @@ const SORT: Record<string, string> = {
   priority: 'priority',
   status: 'status',
   updatedAt: 'updated_at',
+}
+
+const TASK_STATUS_TO_AUDIT_ACTION: Record<TaskStatus, string> = {
+  BLOCKED: AuditActions.TASK_BLOCKED,
+  CANCELLED: AuditActions.TASK_CANCELLED,
+  IN_REVIEW: AuditActions.TASK_IN_REVIEW,
+  OPEN: AuditActions.TASK_OPEN,
+  RESOLVED: AuditActions.TASK_RESOLVED,
 }
 
 @Injectable()
@@ -157,7 +166,7 @@ export class TasksService {
     )
     await this.auditService.record(
       {
-        action: 'TASK_CREATED',
+        action: AuditActions.TASK_CREATED,
         actorId: actor.actorId,
         actorRole: actor.actorRole,
         entityId: id,
@@ -196,7 +205,7 @@ export class TasksService {
       )
       await this.auditService.record(
         {
-          action: 'TASK_UPDATED',
+          action: AuditActions.TASK_UPDATED,
           actorId: actor.actorId,
           actorRole: actor.actorRole,
           entityId: id,
@@ -242,7 +251,7 @@ export class TasksService {
       )
       await this.auditService.record(
         {
-          action: `TASK_${input.status}`,
+          action: TASK_STATUS_TO_AUDIT_ACTION[input.status],
           actorId: actor.actorId,
           actorRole: actor.actorRole,
           entityId: id,
@@ -298,7 +307,7 @@ export class TasksService {
       )
       await this.auditService.record(
         {
-          action: 'TASK_UPDATED',
+          action: AuditActions.TASK_UPDATED,
           actorId: actor.actorId,
           actorRole: actor.actorRole,
           entityId: existing.id,
@@ -365,7 +374,7 @@ export class TasksService {
     for (const row of rows.rows) {
       await this.auditService.record(
         {
-          action: 'TASK_RESOLVED',
+          action: AuditActions.TASK_RESOLVED,
           actorId: actor.actorId,
           actorRole: actor.actorRole,
           entityId: row.id,

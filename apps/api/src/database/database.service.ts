@@ -243,6 +243,36 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     `)
 
     await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        external_id TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL UNIQUE,
+        full_name TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'ACTIVE',
+        platform_role TEXT NOT NULL DEFAULT 'NONE',
+        last_seen_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_users_status ON users (status);
+      CREATE INDEX IF NOT EXISTS idx_users_external_id ON users (external_id);
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS user_issuer_roles (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        issuer_id TEXT NOT NULL REFERENCES issuers(id) ON DELETE CASCADE,
+        role TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, issuer_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_user_issuer_roles_issuer ON user_issuer_roles (issuer_id, role);
+      CREATE INDEX IF NOT EXISTS idx_user_issuer_roles_user ON user_issuer_roles (user_id, role);
+    `)
+
+    await this.pool.query(`
       CREATE TABLE IF NOT EXISTS securities (
         id TEXT PRIMARY KEY,
         issuer_id TEXT NOT NULL REFERENCES issuers(id) ON DELETE CASCADE,
@@ -381,7 +411,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       CREATE TABLE IF NOT EXISTS audit_events (
         id BIGSERIAL PRIMARY KEY,
         occurred_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        actor_id TEXT NOT NULL,
+        actor_id TEXT,
         actor_role TEXT,
         action TEXT NOT NULL,
         severity TEXT NOT NULL DEFAULT 'INFO',
@@ -396,6 +426,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       CREATE INDEX IF NOT EXISTS idx_audit_issuer ON audit_events (issuer_id, occurred_at DESC);
       CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_events (action);
       CREATE INDEX IF NOT EXISTS idx_audit_occurred ON audit_events (occurred_at DESC);
+      ALTER TABLE audit_events ALTER COLUMN actor_id DROP NOT NULL;
     `)
 
     // Dividend events + entitlements.

@@ -1,6 +1,34 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
+import { buildPaginated, pageOffset, type PaginationQueryDto } from './pagination.js'
+
+describe('pagination helpers', () => {
+  it('computes deterministic pagination metadata', () => {
+    const query: PaginationQueryDto = {
+      page: 2,
+      pageSize: 10,
+      q: 'abc',
+      sortBy: 'createdAt',
+      sortDir: 'asc',
+    }
+    const response = buildPaginated([1, 2], 35, query)
+    assert.equal(response.page, 2)
+    assert.equal(response.pageSize, 10)
+    assert.equal(response.total, 35)
+    assert.equal(response.totalPages, 4)
+    assert.equal(response.sortDir, 'asc')
+  })
+
+  it('computes offset from query', () => {
+    assert.equal(pageOffset({ page: 1, pageSize: 25, sortDir: 'desc' }), 0)
+    assert.equal(pageOffset({ page: 3, pageSize: 10, sortDir: 'desc' }), 20)
+  })
+})
+
+import assert from 'node:assert/strict'
+import { describe, it } from 'node:test'
+
 import { buildPaginated, pageOffset, PaginationQueryDto, resolveSort } from './pagination.js'
 
 function query(overrides: Partial<PaginationQueryDto> = {}): PaginationQueryDto {

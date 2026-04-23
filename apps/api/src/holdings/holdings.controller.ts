@@ -1,6 +1,7 @@
 import { Controller, Get, Param, Query } from '@nestjs/common'
 
 import { Permissions } from '../auth/permissions.decorator.js'
+import { Scope } from '../auth/scope.decorator.js'
 
 import { HoldingsQuery, HoldingsService } from './holdings.service.js'
 
@@ -10,6 +11,12 @@ export class HoldingsController {
 
   @Permissions('transfer.view', 'report.view')
   @Get()
+  @Scope({
+    issuerPaths: ['query.issuerId'],
+    shareholderPaths: ['query.shareholderId'],
+    autoFillShareholderPath: 'query.shareholderId',
+    autoFillIssuerPath: 'query.issuerId',
+  })
   async list(@Query() query: HoldingsQuery) {
     return this.holdingsService.list(query)
   }

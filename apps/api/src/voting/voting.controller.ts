@@ -4,6 +4,7 @@ import { IsString } from 'class-validator'
 import type { AuthenticatedRequest } from '../auth/authenticated-request.js'
 import { CurrentRequest } from '../auth/current-request.decorator.js'
 import { Permissions } from '../auth/permissions.decorator.js'
+import { Scope } from '../auth/scope.decorator.js'
 import { actorFromRequest } from '../common/actor.js'
 
 import {
@@ -27,24 +28,28 @@ export class VotingController {
 
   @Permissions('transfer.view', 'report.view')
   @Get('meetings')
+  @Scope({ issuerPaths: ['query.issuerId'], autoFillIssuerPath: 'query.issuerId' })
   async listMeetings(@Query() query: MeetingListQuery) {
     return this.votingService.listMeetings(query)
   }
 
   @Permissions('transfer.view', 'report.view')
   @Get('meetings/:id')
+  @Scope({ entityRule: { entity: 'meeting' } })
   async getMeeting(@Param('id') id: string) {
     return this.votingService.getMeeting(id)
   }
 
   @Permissions('agent.admin')
   @Post('meetings')
+  @Scope({ issuerPaths: ['body.issuerId'], autoFillIssuerPath: 'body.issuerId' })
   async createMeeting(@Body() body: CreateMeetingDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.votingService.createMeeting(body, actorFromRequest(request))
   }
 
   @Permissions('agent.admin')
   @Patch('meetings/:id')
+  @Scope({ entityRule: { entity: 'meeting' } })
   async updateMeeting(
     @Param('id') id: string,
     @Body() body: UpdateMeetingDto,
@@ -55,6 +60,7 @@ export class VotingController {
 
   @Permissions('agent.admin')
   @Post('meetings/:id/proposals')
+  @Scope({ entityRule: { entity: 'meeting' } })
   async upsertProposals(
     @Param('id') id: string,
     @Body() body: BulkProposalsDto,
@@ -65,6 +71,7 @@ export class VotingController {
 
   @Permissions('agent.admin')
   @Post('meetings/:id/open')
+  @Scope({ entityRule: { entity: 'meeting' } })
   async open(
     @Param('id') id: string,
     @Body() body: OpenMeetingDto,
@@ -75,36 +82,42 @@ export class VotingController {
 
   @Permissions('agent.admin')
   @Post('meetings/:id/close')
+  @Scope({ entityRule: { entity: 'meeting' } })
   async close(@Param('id') id: string, @CurrentRequest() request: AuthenticatedRequest) {
     return this.votingService.closeMeeting(id, actorFromRequest(request))
   }
 
   @Permissions('agent.admin')
   @Post('meetings/:id/certify')
+  @Scope({ entityRule: { entity: 'meeting' } })
   async certify(@Param('id') id: string, @CurrentRequest() request: AuthenticatedRequest) {
     return this.votingService.certifyMeeting(id, actorFromRequest(request))
   }
 
   @Permissions('transfer.view', 'report.view')
   @Get('meetings/:id/tallies')
+  @Scope({ entityRule: { entity: 'meeting' } })
   async tallies(@Param('id') id: string) {
     return this.votingService.tallyMeeting(id)
   }
 
   @Permissions('transfer.view', 'report.view')
   @Get('ballots')
+  @Scope({ shareholderPaths: ['query.shareholderId'], autoFillShareholderPath: 'query.shareholderId' })
   async listBallots(@Query() query: BallotListQuery) {
     return this.votingService.listBallots(query)
   }
 
   @Permissions('transfer.view', 'report.view')
   @Get('ballots/:id')
+  @Scope({ entityRule: { entity: 'ballot' } })
   async getBallot(@Param('id') id: string) {
     return this.votingService.getBallotDetail(id)
   }
 
   @Permissions('shareholder.transfer.create', 'transfer.view')
   @Post('ballots/:id/submit')
+  @Scope({ entityRule: { entity: 'ballot' } })
   async submitBallot(
     @Param('id') id: string,
     @Body() body: SubmitBallotDto,

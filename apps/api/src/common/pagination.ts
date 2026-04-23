@@ -1,5 +1,5 @@
-import { Type } from 'class-transformer'
-import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
+import { Transform, Type } from 'class-transformer'
+import { IsIn, IsInt, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator'
 
 export class PaginationQueryDto {
   @IsOptional()
@@ -17,6 +17,8 @@ export class PaginationQueryDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(64)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   sortBy?: string
 
   @IsOptional()
@@ -25,6 +27,8 @@ export class PaginationQueryDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(256)
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   q?: string
 }
 
@@ -39,10 +43,11 @@ export interface PaginatedResponse<T> {
 }
 
 export function buildPaginated<T>(items: T[], total: number, query: PaginationQueryDto): PaginatedResponse<T> {
+  const page = query.page || 1
   const pageSize = query.pageSize || 25
   return {
     items,
-    page: query.page || 1,
+    page,
     pageSize,
     total,
     totalPages: pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1,

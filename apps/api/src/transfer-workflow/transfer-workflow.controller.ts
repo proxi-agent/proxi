@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common'
 
 import { Permissions } from '../auth/permissions.decorator.js'
 import type { AuthenticatedRequest } from '../auth/authenticated-request.js'
+import { Scope } from '../auth/scope.decorator.js'
 import { actorFromRequest } from '../common/actor.js'
 import type { PaginatedResponse } from '../common/pagination.js'
 
@@ -39,24 +40,37 @@ export class TransferWorkflowController {
 
   @Get()
   @Permissions('transfer.view')
+  @Scope({
+    issuerPaths: ['query.issuerId'],
+    accountPaths: ['query.accountId'],
+    autoFillIssuerPath: 'query.issuerId',
+    autoFillAccountPath: 'query.accountId',
+  })
   list(@Query() query: TransferQueueQuery): Promise<PaginatedResponse<TransferRequestSummary>> {
     return this.service.list(query)
   }
 
   @Get(':id')
   @Permissions('transfer.view')
+  @Scope({ entityRule: { entity: 'transfer' } })
   detail(@Param('id') id: string): Promise<TransferDetail> {
     return this.service.getDetail(id)
   }
 
   @Get(':id/ledger-preview')
   @Permissions('transfer.view')
+  @Scope({ entityRule: { entity: 'transfer' } })
   preview(@Param('id') id: string): Promise<LedgerImpactPreview> {
     return this.service.previewLedgerImpact(id)
   }
 
   @Post()
   @Permissions('shareholder.transfer.create')
+  @Scope({
+    issuerPaths: ['body.issuerId'],
+    accountPaths: ['body.fromAccountId', 'body.toAccountId'],
+    autoFillIssuerPath: 'body.issuerId',
+  })
   create(
     @Body() body: CreateTransferRequestDto,
     @Req() req: AuthenticatedRequest,
@@ -66,6 +80,7 @@ export class TransferWorkflowController {
 
   @Post(':id/submit')
   @Permissions('shareholder.transfer.create')
+  @Scope({ entityRule: { entity: 'transfer' } })
   submit(
     @Param('id') id: string,
     @Req() req: AuthenticatedRequest,
@@ -75,6 +90,7 @@ export class TransferWorkflowController {
 
   @Post(':id/start-review')
   @Permissions('transfer.review')
+  @Scope({ entityRule: { entity: 'transfer' } })
   startReview(
     @Param('id') id: string,
     @Body() body: StartReviewDto,
@@ -85,6 +101,7 @@ export class TransferWorkflowController {
 
   @Post(':id/request-info')
   @Permissions('transfer.review')
+  @Scope({ entityRule: { entity: 'transfer' } })
   requestInfo(
     @Param('id') id: string,
     @Body() body: RequestInfoDto,
@@ -95,6 +112,7 @@ export class TransferWorkflowController {
 
   @Post(':id/resubmit')
   @Permissions('shareholder.transfer.create')
+  @Scope({ entityRule: { entity: 'transfer' } })
   resubmit(
     @Param('id') id: string,
     @Body() body: ResubmitDto,
@@ -105,6 +123,7 @@ export class TransferWorkflowController {
 
   @Post(':id/approve')
   @Permissions('transfer.approve')
+  @Scope({ entityRule: { entity: 'transfer' } })
   approve(
     @Param('id') id: string,
     @Body() body: ApproveTransferDto,
@@ -115,6 +134,7 @@ export class TransferWorkflowController {
 
   @Post(':id/reject')
   @Permissions('transfer.approve')
+  @Scope({ entityRule: { entity: 'transfer' } })
   reject(
     @Param('id') id: string,
     @Body() body: RejectTransferDto,
@@ -125,6 +145,7 @@ export class TransferWorkflowController {
 
   @Post(':id/settle')
   @Permissions('transfer.approve')
+  @Scope({ entityRule: { entity: 'transfer' } })
   settle(
     @Param('id') id: string,
     @Body() body: SettleTransferDto,
@@ -135,6 +156,7 @@ export class TransferWorkflowController {
 
   @Post(':id/cancel')
   @Permissions('transfer.review')
+  @Scope({ entityRule: { entity: 'transfer' } })
   cancel(
     @Param('id') id: string,
     @Body() body: CancelTransferDto,

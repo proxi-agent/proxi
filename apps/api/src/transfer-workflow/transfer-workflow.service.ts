@@ -27,7 +27,6 @@ import type { ActorContext } from '../common/actor.js'
 import type { PaginatedResponse } from '../common/pagination.js'
 import { buildPaginated, pageOffset, resolveSort } from '../common/pagination.js'
 import { PrismaService } from '../prisma/prisma.service.js'
-import { TasksService } from '../tasks/tasks.service.js'
 import { TasksSignalsService } from '../tasks/tasks.signals.service.js'
 
 import type {
@@ -62,6 +61,14 @@ const SORT_COLUMNS: Record<string, keyof Prisma.TransferRequestOrderByWithRelati
   submittedAt: 'submittedAt',
   updatedAt: 'updatedAt',
 }
+const SORT_KEYS: Record<string, string> = {
+  createdAt: 'createdAt',
+  priority: 'priority',
+  quantity: 'quantity',
+  state: 'state',
+  submittedAt: 'submittedAt',
+  updatedAt: 'updatedAt',
+}
 
 const OPEN_STATES: TransferState[] = [
   TransferState.SUBMITTED,
@@ -87,7 +94,6 @@ export class TransferWorkflowService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
-    private readonly tasks: TasksService,
     private readonly signals: TasksSignalsService,
   ) {}
 
@@ -126,10 +132,7 @@ export class TransferWorkflowService {
       where.AND = where.AND ? [...(Array.isArray(where.AND) ? where.AND : [where.AND]), { OR: tokens }] : [{ OR: tokens }]
     }
 
-    const sort = resolveSort(query, Object.keys(SORT_COLUMNS).reduce<Record<string, string>>((acc, key) => {
-      acc[key] = key
-      return acc
-    }, {}), { column: 'createdAt', dir: 'desc' })
+    const sort = resolveSort(query, SORT_KEYS, { column: 'createdAt', dir: 'desc' })
     const orderBy: Prisma.TransferRequestOrderByWithRelationInput = {
       [SORT_COLUMNS[sort.column] ?? 'createdAt']: sort.dir,
     }
@@ -156,18 +159,21 @@ export class TransferWorkflowService {
       throw new NotFoundException(`Transfer ${id} not found`)
     }
 
-    const auditRows = await this.audit.list({
-      entityType: 'TRANSFER_REQUEST',
-      entityId: id,
-      page: 1,
-      pageSize: 200,
-      sortBy: 'occurredAt',
-      sortDir: 'asc',
-    })
+    const auditRows = await this.audit.timeline('TRANSFER_REQUEST', id, { limit: 200 })
 
     const preview = await this.previewLedgerImpactFromTransfer(transfer)
     const reviews = transfer.reviews.map(mapReview)
-    const timeline = buildTimeline(reviews, auditRows.items)
+    const timeline = buildTimeline(
+      reviews,
+      auditRows.map(row => ({
+        action: row.action,
+        actorId: row.actor.id,
+        actorRole: row.actor.role,
+        id: row.id,
+        metadata: row.payload,
+        occurredAt: new Date(row.at),
+      })),
+    )
 
     return {
       ...mapSummary(transfer),

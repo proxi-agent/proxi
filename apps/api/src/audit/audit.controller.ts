@@ -3,6 +3,8 @@ import { Type } from 'class-transformer'
 import { IsDateString, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
 import { Permissions } from '../auth/permissions.decorator.js'
+import { Roles } from '../auth/roles.decorator.js'
+import { Scope } from '../auth/scope.decorator.js'
 import { PaginationQueryDto } from '../common/pagination.js'
 
 import { AuditService } from './audit.service.js'
@@ -30,7 +32,7 @@ class AuditQueryDto extends PaginationQueryDto {
   action?: string
 
   @IsOptional()
-  @IsIn(['INFO', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'])
+  @IsIn(['INFO', 'NOTICE', 'WARN', 'CRITICAL'])
   severity?: AuditSeverity
 
   @IsOptional()
@@ -64,7 +66,9 @@ export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 
   @Permissions('report.view')
+  @Roles('agent_admin', 'issuer_admin', 'issuer_operator', 'super_admin', 'transfer_agent_admin')
   @Get('events')
+  @Scope({ issuerPaths: ['query.issuerId'], autoFillIssuerPath: 'query.issuerId' })
   async list(@Query() query: AuditQueryDto) {
     return this.auditService.list(query)
   }
@@ -75,6 +79,7 @@ export class AuditController {
    * exports, or timeline UI components.
    */
   @Permissions('report.view')
+  @Roles('agent_admin', 'issuer_admin', 'issuer_operator', 'super_admin', 'transfer_agent_admin')
   @Get('timeline/:entityType/:entityId')
   async timeline(
     @Param('entityType') entityType: AuditEntityType,

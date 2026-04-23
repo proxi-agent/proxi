@@ -2,7 +2,8 @@ import { Type } from 'class-transformer'
 import {
   ArrayMaxSize,
   IsArray,
-  IsEnum,
+  IsBoolean,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -10,15 +11,20 @@ import {
   Min,
   MinLength,
 } from 'class-validator'
-import {
-  TransferIntakeMethod,
-  TransferKind,
-  TransferLifecycleStage,
-  TransferPriority,
-  TransferState,
-} from '@prisma/client'
 
 import { PaginationQueryDto } from '../common/pagination.js'
+
+const TRANSFER_INTAKE_METHODS = ['API', 'DOCUMENT_UPLOAD', 'GUIDED_ENTRY', 'LEGACY_IMPORT'] as const
+const TRANSFER_KINDS = ['ADJUSTMENT', 'CANCELLATION', 'ISSUANCE', 'TRANSFER'] as const
+const TRANSFER_LIFECYCLE_STAGES = ['APPROVAL', 'CLOSED', 'INTAKE', 'REVIEW', 'SETTLEMENT'] as const
+const TRANSFER_PRIORITIES = ['HIGH', 'LOW', 'STANDARD', 'URGENT'] as const
+const TRANSFER_STATES = ['APPROVED', 'CANCELLED', 'DRAFT', 'NEEDS_INFO', 'REJECTED', 'SETTLED', 'SUBMITTED', 'UNDER_REVIEW'] as const
+
+type TransferIntakeMethod = (typeof TRANSFER_INTAKE_METHODS)[number]
+type TransferKind = (typeof TRANSFER_KINDS)[number]
+type TransferLifecycleStage = (typeof TRANSFER_LIFECYCLE_STAGES)[number]
+type TransferPriority = (typeof TRANSFER_PRIORITIES)[number]
+type TransferState = (typeof TRANSFER_STATES)[number]
 
 export class CreateTransferRequestDto {
   @IsString()
@@ -44,15 +50,15 @@ export class CreateTransferRequestDto {
   quantity!: number
 
   @IsOptional()
-  @IsEnum(TransferKind)
+  @IsIn(TRANSFER_KINDS)
   kind?: TransferKind
 
   @IsOptional()
-  @IsEnum(TransferIntakeMethod)
+  @IsIn(TRANSFER_INTAKE_METHODS)
   intakeMethod?: TransferIntakeMethod
 
   @IsOptional()
-  @IsEnum(TransferPriority)
+  @IsIn(TRANSFER_PRIORITIES)
   priority?: TransferPriority
 
   @IsOptional()
@@ -76,6 +82,8 @@ export class CreateTransferRequestDto {
    * Convenience for portal flows that file and submit in one step.
    */
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
   submit?: boolean
 }
 
@@ -161,19 +169,19 @@ export class TransferQueueQuery extends PaginationQueryDto {
   issuerId?: string
 
   @IsOptional()
-  @IsEnum(TransferState)
+  @IsIn(TRANSFER_STATES)
   state?: TransferState
 
   @IsOptional()
-  @IsEnum(TransferLifecycleStage)
+  @IsIn(TRANSFER_LIFECYCLE_STAGES)
   lifecycleStage?: TransferLifecycleStage
 
   @IsOptional()
-  @IsEnum(TransferKind)
+  @IsIn(TRANSFER_KINDS)
   kind?: TransferKind
 
   @IsOptional()
-  @IsEnum(TransferPriority)
+  @IsIn(TRANSFER_PRIORITIES)
   priority?: TransferPriority
 
   @IsOptional()
@@ -197,5 +205,7 @@ export class TransferQueueQuery extends PaginationQueryDto {
    * (UNDER_REVIEW + NEEDS_INFO + SUBMITTED). Convenience for queue views.
    */
   @IsOptional()
+  @Type(() => Boolean)
+  @IsBoolean()
   onlyOpen?: boolean
 }

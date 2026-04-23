@@ -18,6 +18,7 @@ const SYSTEM_ACTOR: ActorContext = {
 
 interface SeedSummary {
   issuers: number
+  users: number
   securities: number
   shareholders: number
   accounts: number
@@ -201,6 +202,8 @@ export class SeedService {
       })
     }
 
+    const usersCreated = await this.seedDemoUsers(issuer.id, shareholders)
+
     let ledgerEvents = 0
     for (const holder of shareholders) {
       await this.ledgerService.issue(
@@ -320,7 +323,7 @@ export class SeedService {
       SYSTEM_ACTOR,
     )
 
-    const opened = await this.votingService.openMeeting(meeting.id, security.id, SYSTEM_ACTOR)
+    await this.votingService.openMeeting(meeting.id, security.id, SYSTEM_ACTOR)
 
     const ballotsPage = await this.votingService.listBallots({
       meetingId: meeting.id,
@@ -328,10 +331,10 @@ export class SeedService {
       pageSize: 200,
       sortDir: 'asc',
     })
+    const meetingDetail = await this.votingService.getMeeting(meeting.id)
     let ballotsSubmitted = 0
     for (const [index, ballot] of ballotsPage.items.entries()) {
       const choice = index % 3 === 0 ? 'AGAINST' : 'FOR'
-      const meetingDetail = await this.votingService.getMeeting(meeting.id)
       const votes = meetingDetail.proposals.map((proposal, idx) => ({
         choice: idx === 2 && index % 2 === 0 ? 'AGAINST' : choice,
         proposalId: proposal.id,
@@ -421,6 +424,7 @@ export class SeedService {
       securities: 1,
       shareholders: shareholders.length,
       tasks: 2,
+      users: usersCreated,
     }
     this.logger.log(`Seed complete: ${JSON.stringify(summary)}`)
     return summary
@@ -433,18 +437,110 @@ export class SeedService {
       await client.query(`DELETE FROM proposals`)
       await client.query(`DELETE FROM meetings`)
       await client.query(`DELETE FROM dividend_entitlements`)
+      await client.query(`DELETE FROM dividend_payments`)
       await client.query(`DELETE FROM dividend_events`)
+      await client.query(`DELETE FROM transfer_reviews`)
+      await client.query(`DELETE FROM transfer_requests`)
+      await client.query(`DELETE FROM holdings`)
+      await client.query(`DELETE FROM ledger_entries`)
+      await client.query(`DELETE FROM documents`)
       await client.query(`DELETE FROM notices`)
       await client.query(`DELETE FROM tasks`)
       await client.query(`DELETE FROM ledger_events`)
       await client.query(`DELETE FROM shareholder_accounts`)
       await client.query(`DELETE FROM shareholders`)
+      await client.query(`DELETE FROM user_issuer_roles`)
+      await client.query(`DELETE FROM users`)
       await client.query(`DELETE FROM share_classes`)
       await client.query(`DELETE FROM securities`)
       await client.query(`DELETE FROM issuers`)
       await client.query(`DELETE FROM audit_events`)
     })
     this.logger.warn('All seed data reset')
+  }
+
+  private async seedDemoUsers(
+    issuerId: string,
+    shareholders: Array<{ accountNumber: string; accountId: string; shareholderId: string; initialShares: number }>,
+  ): Promise<number> {
+    const demoUsers = [
+      {
+        email: 'super.admin@proxi-demo.example',
+        externalId: 'demo-super-admin',
+        fullName: 'Demo Super Admin',
+        issuerRole: null as null | 'ISSUER_ADMIN' | 'ISSUER_OPERATOR' | 'INVESTOR',
+        platformRole: 'ADMIN',
+      },
+      {
+        email: 'agent.admin@proxi-demo.example',
+        externalId: 'demo-transfer-agent-admin',
+        fullName: 'Demo Transfer Agent Admin',
+        issuerRole: null as null | 'ISSUER_ADMIN' | 'ISSUER_OPERATOR' | 'INVESTOR',
+        platformRole: 'OPERATIONS',
+      },
+      {
+        email: 'issuer.admin@proxi-demo.example',
+        externalId: 'demo-issuer-admin',
+        fullName: 'Demo Issuer Admin',
+        issuerRole: 'ISSUER_ADMIN' as const,
+        platformRole: 'NONE',
+      },
+      {
+        email: 'issuer.operator@proxi-demo.example',
+        externalId: 'demo-issuer-operator',
+        fullName: 'Demo Issuer Operator',
+        issuerRole: 'ISSUER_OPERATOR' as const,
+        platformRole: 'NONE',
+      },
+      {
+        email: 'shareholder@proxi-demo.example',
+        externalId: 'demo-shareholder',
+        fullName: 'Demo Shareholder',
+        issuerRole: 'INVESTOR' as const,
+        platformRole: 'NONE',
+      },
+    ]
+
+    // Attach one seeded holder email to the shareholder demo user so account
+    // scoping can be inferred from existing shareholder/account records.
+    const shareholder = shareholders[3]
+    if (shareholder) {
+      await this.database.query(
+        `UPDATE shareholder_accounts
+         SET primary_email = $2, updated_at = NOW()
+         WHERE id = $1`,
+        [shareholder.accountId, 'shareholder@proxi-demo.example'],
+      )
+      await this.database.query(
+        `UPDATE shareholders
+         SET email = $2, updated_at = NOW()
+         WHERE id = $1`,
+        [shareholder.shareholderId, 'shareholder@proxi-demo.example'],
+      )
+    }
+
+    let created = 0
+    for (const user of demoUsers) {
+      const id = `usr_${user.externalId.replace(/[^a-z0-9]/gi, '_')}`
+      await this.database.query(
+        `INSERT INTO users (id, external_id, email, full_name, status, platform_role)
+         VALUES ($1,$2,$3,$4,'ACTIVE',$5)
+         ON CONFLICT (external_id)
+         DO UPDATE SET email = EXCLUDED.email, full_name = EXCLUDED.full_name, platform_role = EXCLUDED.platform_role, updated_at = NOW()`,
+        [id, user.externalId, user.email, user.fullName, user.platformRole],
+      )
+      created += 1
+      if (user.issuerRole) {
+        await this.database.query(
+          `INSERT INTO user_issuer_roles (id, user_id, issuer_id, role)
+           VALUES ($1,$2,$3,$4)
+           ON CONFLICT (user_id, issuer_id)
+           DO UPDATE SET role = EXCLUDED.role, updated_at = NOW()`,
+          [`uir_${id}_${issuerId}`, id, issuerId, user.issuerRole],
+        )
+      }
+    }
+    return created
   }
 }
 

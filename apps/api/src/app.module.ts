@@ -15,6 +15,7 @@ import { JobsModule } from './jobs/jobs.module.js'
 import { LedgerModule } from './ledger/ledger.module.js'
 import { NoticesModule } from './notices/notices.module.js'
 import { OperationsModule } from './operations/operations.module.js'
+import { PortalModule } from './portal/portal.module.js'
 import { PrismaModule } from './prisma/prisma.module.js'
 import { ReportingModule } from './reporting/reporting.module.js'
 import { RulesModule } from './rules/rules.module.js'
@@ -43,6 +44,7 @@ import { AppService } from './app.service.js'
     LedgerModule,
     NoticesModule,
     OperationsModule,
+    PortalModule,
     PrismaModule,
     ReportingModule,
     RulesModule,

@@ -10,7 +10,7 @@ export interface ActorContext {
 export function actorFromRequest(request?: AuthenticatedRequest): ActorContext {
   const user = request?.authUser
   return {
-    actorId: user?.clerkUserId || user?.email || user?.name || 'system',
+    actorId: user?.userId || user?.externalId || user?.clerkUserId || user?.email || user?.name || 'system',
     actorRole: user?.role,
     ip: request?.ip,
     userAgent: request?.headers?.['user-agent'],
