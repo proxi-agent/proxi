@@ -97,12 +97,8 @@ model User {
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
-  issuerRoles        UserIssuerRole[]
-  submittedTransfers TransferRequest[] @relation("TransferSubmittedBy")
-  reviewedTransfers  TransferReview[]
-  assignedTasks      Task[]            @relation("TaskAssignee")
-  resolvedTasks      Task[]            @relation("TaskResolvedBy")
-  auditEvents        AuditEvent[]
+  issuerRoles UserIssuerRole[]
+  auditEvents AuditEvent[]
 
   @@index([status])
   @@map("users")
@@ -362,6 +358,8 @@ model TransferRequest {
   /// need to map a large enum into a lane.
   lifecycleStage        TransferLifecycleStage @default(INTAKE)
   priority              TransferPriority     @default(STANDARD)
+  /// Actor identifier (Clerk user id / email / system actor) — not a FK so
+  /// automated actors can submit without a User row.
   submittedById         String?
   assignedReviewerId    String?
   aiConfidence          Decimal?             @db.Decimal(5, 4)
@@ -380,14 +378,13 @@ model TransferRequest {
   createdAt             DateTime             @default(now())
   updatedAt             DateTime             @updatedAt
 
-  issuer       Issuer               @relation(fields: [issuerId], references: [id], onDelete: Cascade)
-  security     Security             @relation(fields: [securityId], references: [id], onDelete: Restrict)
-  shareClass   ShareClass           @relation(fields: [shareClassId], references: [id], onDelete: Restrict)
-  fromAccount  ShareholderAccount?  @relation("TransferFromAccount", fields: [fromAccountId], references: [id], onDelete: SetNull)
-  toAccount    ShareholderAccount?  @relation("TransferToAccount",   fields: [toAccountId],   references: [id], onDelete: SetNull)
-  submittedBy  User?                @relation("TransferSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
-  reviews      TransferReview[]
-  documents    Document[]
+  issuer      Issuer              @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  security    Security            @relation(fields: [securityId], references: [id], onDelete: Restrict)
+  shareClass  ShareClass          @relation(fields: [shareClassId], references: [id], onDelete: Restrict)
+  fromAccount ShareholderAccount? @relation("TransferFromAccount", fields: [fromAccountId], references: [id], onDelete: SetNull)
+  toAccount   ShareholderAccount? @relation("TransferToAccount", fields: [toAccountId], references: [id], onDelete: SetNull)
+  reviews     TransferReview[]
+  documents   Document[]
 
   @@unique([issuerId, reference])
   @@index([issuerId, state])
@@ -402,17 +399,18 @@ model TransferRequest {
 
 /// An approval/rejection/request-for-info decision on a transfer, in order.
 /// Insert-only — retracting a decision means appending a compensating row.
+/// `reviewerId` is an actor string (not a FK) so system actors can author
+/// compensating reviews without requiring a User row.
 model TransferReview {
-  id          String              @id @default(cuid())
-  transferId  String
-  action      TransferReviewAction
-  reviewerId  String
-  reason      String?
-  notes       String?
-  createdAt   DateTime            @default(now())
+  id         String               @id @default(cuid())
+  transferId String
+  action     TransferReviewAction
+  reviewerId String
+  reason     String?
+  notes      String?
+  createdAt  DateTime             @default(now())
 
   transfer TransferRequest @relation(fields: [transferId], references: [id], onDelete: Cascade)
-  reviewer User            @relation(fields: [reviewerId], references: [id], onDelete: Restrict)
 
   @@index([transferId, createdAt])
   @@index([reviewerId, createdAt])
@@ -746,9 +744,7 @@ model Task {
   createdAt          DateTime       @default(now())
   updatedAt          DateTime       @updatedAt
 
-  issuer     Issuer? @relation(fields: [issuerId],    references: [id], onDelete: SetNull)
-  assignee   User?   @relation("TaskAssignee",        fields: [assigneeId],    references: [id], onDelete: SetNull)
-  resolvedBy User?   @relation("TaskResolvedBy",      fields: [resolvedById],  references: [id], onDelete: SetNull)
+  issuer Issuer? @relation(fields: [issuerId], references: [id], onDelete: SetNull)
 
   @@index([issuerId, status])
   @@index([status, priority, dueAt])

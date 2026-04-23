@@ -15,12 +15,14 @@ import { JobsModule } from './jobs/jobs.module.js'
 import { LedgerModule } from './ledger/ledger.module.js'
 import { NoticesModule } from './notices/notices.module.js'
 import { OperationsModule } from './operations/operations.module.js'
+import { PrismaModule } from './prisma/prisma.module.js'
 import { ReportingModule } from './reporting/reporting.module.js'
 import { RulesModule } from './rules/rules.module.js'
 import { SecuritiesModule } from './securities/securities.module.js'
 import { SeedModule } from './seed/seed.module.js'
 import { ShareholdersModule } from './shareholders/shareholders.module.js'
 import { TasksModule } from './tasks/tasks.module.js'
+import { TransferWorkflowModule } from './transfer-workflow/transfer-workflow.module.js'
 import { TransfersModule } from './transfers/transfers.module.js'
 import { VotingModule } from './voting/voting.module.js'
 import { AppController } from './app.controller.js'
@@ -40,12 +42,14 @@ import { AppService } from './app.service.js'
     LedgerModule,
     NoticesModule,
     OperationsModule,
+    PrismaModule,
     ReportingModule,
     RulesModule,
     SecuritiesModule,
     SeedModule,
     ShareholdersModule,
     TasksModule,
+    TransferWorkflowModule,
     TransfersModule,
     VotingModule,
   ],

@@ -5,6 +5,7 @@ export type AuditEntityType =
   | 'DIVIDEND_ENTITLEMENT'
   | 'DIVIDEND_EVENT'
   | 'ISSUER'
+  | 'LEDGER_ENTRY'
   | 'LEDGER_EVENT'
   | 'MEETING'
   | 'NOTICE'
@@ -14,6 +15,7 @@ export type AuditEntityType =
   | 'SHAREHOLDER_ACCOUNT'
   | 'TASK'
   | 'TRANSFER_CASE'
+  | 'TRANSFER_REQUEST'
   | 'USER'
   | 'VOTE'
 
