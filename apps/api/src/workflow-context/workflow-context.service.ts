@@ -209,9 +209,7 @@ export class WorkflowContextService {
       this.tasks.listForEntity('MEETING', id),
     ])
     const stats = ballotStats[0] ?? { eligible: '0', submitted: '0', total: '0' }
-    const submittedPct = stats.total !== '0'
-      ? (Number(stats.submitted) / Number(stats.total)) * 100
-      : 0
+    const submittedPct = stats.total !== '0' ? (Number(stats.submitted) / Number(stats.total)) * 100 : 0
 
     const facts: WorkflowFact[] = [
       { format: 'text', label: 'Title', value: row.title },
@@ -263,9 +261,7 @@ function serializeTransfer(
 ): Record<string, unknown> {
   return {
     createdAt: transfer.createdAt.toISOString(),
-    fromAccount: transfer.fromAccount
-      ? { accountNumber: transfer.fromAccount.accountNumber, id: transfer.fromAccount.id }
-      : null,
+    fromAccount: transfer.fromAccount ? { accountNumber: transfer.fromAccount.accountNumber, id: transfer.fromAccount.id } : null,
     id: transfer.id,
     intakeMethod: transfer.intakeMethod,
     issuerId: transfer.issuerId,
@@ -279,9 +275,7 @@ function serializeTransfer(
     shareClass: transfer.shareClass,
     state: transfer.state,
     submittedAt: transfer.submittedAt?.toISOString() ?? null,
-    toAccount: transfer.toAccount
-      ? { accountNumber: transfer.toAccount.accountNumber, id: transfer.toAccount.id }
-      : null,
+    toAccount: transfer.toAccount ? { accountNumber: transfer.toAccount.accountNumber, id: transfer.toAccount.id } : null,
     updatedAt: transfer.updatedAt.toISOString(),
   }
 }

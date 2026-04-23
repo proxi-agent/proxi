@@ -65,10 +65,7 @@ export class NoticesService {
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const sort = resolveSort(query, SORT, { column: 'created_at', dir: 'desc' })
 
-    const countResult = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM notices ${whereSql}`,
-      params,
-    )
+    const countResult = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM notices ${whereSql}`, params)
     const total = Number(countResult.rows[0]?.count || '0')
 
     params.push(query.pageSize)
@@ -209,10 +206,9 @@ export class NoticesService {
       if (!existing.rows.length) {
         throw new NotFoundException(`Notice ${id} not found`)
       }
-      const result = await client.query<NoticeRow>(
-        `UPDATE notices SET status = 'ARCHIVED', updated_at = NOW() WHERE id = $1 RETURNING *`,
-        [id],
-      )
+      const result = await client.query<NoticeRow>(`UPDATE notices SET status = 'ARCHIVED', updated_at = NOW() WHERE id = $1 RETURNING *`, [
+        id,
+      ])
       await this.auditService.record(
         {
           action: 'NOTICE_ARCHIVED',

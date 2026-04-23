@@ -7,13 +7,7 @@ import { Roles } from '../auth/roles.decorator.js'
 import { Scope } from '../auth/scope.decorator.js'
 import { actorFromRequest } from '../common/actor.js'
 
-import {
-  CreateAccountDto,
-  CreateShareholderDto,
-  ShareholderListQuery,
-  UpdateAccountDto,
-  UpdateShareholderDto,
-} from './shareholders.dto.js'
+import { CreateAccountDto, CreateShareholderDto, ShareholderListQuery, UpdateAccountDto, UpdateShareholderDto } from './shareholders.dto.js'
 import { ShareholdersService } from './shareholders.service.js'
 
 @Controller('shareholders')
@@ -49,11 +43,7 @@ export class ShareholdersController {
   @Permissions('agent.admin', 'user.manage')
   @Patch(':id')
   @Scope({ entityRule: { entity: 'shareholder' } })
-  async update(
-    @Param('id') id: string,
-    @Body() body: UpdateShareholderDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async update(@Param('id') id: string, @Body() body: UpdateShareholderDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.shareholdersService.update(id, body, actorFromRequest(request))
   }
 
@@ -79,11 +69,7 @@ export class ShareholdersController {
   @Permissions('agent.admin', 'user.manage')
   @Patch('accounts/:id')
   @Scope({ entityRule: { entity: 'account' } })
-  async updateAccount(
-    @Param('id') id: string,
-    @Body() body: UpdateAccountDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async updateAccount(@Param('id') id: string, @Body() body: UpdateAccountDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.shareholdersService.updateAccount(id, body, actorFromRequest(request))
   }
 }

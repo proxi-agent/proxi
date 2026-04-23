@@ -1,10 +1,4 @@
-export type NoticeKind =
-  | 'COMPLIANCE'
-  | 'DIVIDEND'
-  | 'GENERAL'
-  | 'MEETING'
-  | 'SHAREHOLDER'
-  | 'TRANSFER'
+export type NoticeKind = 'COMPLIANCE' | 'DIVIDEND' | 'GENERAL' | 'MEETING' | 'SHAREHOLDER' | 'TRANSFER'
 
 export type NoticeAudience = 'ALL' | 'BOARD' | 'HOLDERS' | 'REGULATORS' | 'TRANSFER_AGENTS'
 export type NoticeStatus = 'ARCHIVED' | 'DRAFT' | 'PUBLISHED'

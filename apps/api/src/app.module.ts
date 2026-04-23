@@ -58,10 +58,6 @@ import { AppService } from './app.service.js'
     WorkflowContextModule,
   ],
   controllers: [AppController],
-  providers: [
-    AppService,
-    { provide: APP_GUARD, useClass: ClerkAuthGuard },
-    { provide: APP_GUARD, useClass: PermissionsGuard },
-  ],
+  providers: [AppService, { provide: APP_GUARD, useClass: ClerkAuthGuard }, { provide: APP_GUARD, useClass: PermissionsGuard }],
 })
 export class AppModule {}

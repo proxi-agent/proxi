@@ -63,9 +63,7 @@ describe('task focus ranking', () => {
   })
 
   it('limits returned signals to the requested size', () => {
-    const tasks = Array.from({ length: 10 }, (_, idx) =>
-      makeTask({ id: `t-${idx}`, priority: idx < 3 ? 'HIGH' : 'LOW' }),
-    )
+    const tasks = Array.from({ length: 10 }, (_, idx) => makeTask({ id: `t-${idx}`, priority: idx < 3 ? 'HIGH' : 'LOW' }))
     const insight = buildTaskFocusInsight(tasks, 3, now)
     assert.equal(insight.signals.length, 3)
     assert.equal(insight.references.length, 3)

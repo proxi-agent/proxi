@@ -19,13 +19,8 @@ describe('audit.diff', () => {
   })
 
   it('walks nested objects', () => {
-    const result = diff(
-      { policy: { risk: 'LOW', reviewer: 'alice' } },
-      { policy: { risk: 'HIGH', reviewer: 'alice' } },
-    )
-    expect(result.changedFields).toEqual([
-      { after: 'HIGH', before: 'LOW', path: 'policy.risk' },
-    ])
+    const result = diff({ policy: { risk: 'LOW', reviewer: 'alice' } }, { policy: { risk: 'HIGH', reviewer: 'alice' } })
+    expect(result.changedFields).toEqual([{ after: 'HIGH', before: 'LOW', path: 'policy.risk' }])
   })
 
   it('tracks added and removed keys', () => {

@@ -13,7 +13,14 @@ export interface OperationalCopilotInputs {
 export function buildOperationalCopilotInsight(inputs: OperationalCopilotInputs): Insight {
   const signals: InsightSignal[] = []
   const actions: InsightAction[] = []
-  const { meetingsBelowQuorum, overdueDividendSnapshots, overdueUnassignedCriticalTasks, staleTransferCount, summary, unpaidEntitlementsPastPayment } = inputs
+  const {
+    meetingsBelowQuorum,
+    overdueDividendSnapshots,
+    overdueUnassignedCriticalTasks,
+    staleTransferCount,
+    summary,
+    unpaidEntitlementsPastPayment,
+  } = inputs
 
   if (summary.tasks.overdue > 0) {
     signals.push({

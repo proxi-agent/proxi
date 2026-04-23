@@ -1,5 +1,5 @@
-import type { Task } from '../tasks/tasks.types.js'
 import type { AuditTimelineEntry } from '../audit/audit.service.js'
+import type { Task } from '../tasks/tasks.types.js'
 
 /**
  * Machine-readable bundle of everything relevant to a single workflow

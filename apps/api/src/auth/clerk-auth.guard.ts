@@ -4,6 +4,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 
 import { DatabaseService } from '../database/database.service.js'
+
 import type { AuthUser } from './auth-user.js'
 import type { AuthenticatedRequest } from './authenticated-request.js'
 import { IS_PUBLIC_KEY } from './public.decorator.js'
@@ -70,8 +71,7 @@ export class ClerkAuthGuard implements CanActivate {
     }
 
     const email =
-      clerkUser.emailAddresses.find(entry => entry.id === clerkUser.primaryEmailAddressId)?.emailAddress ||
-      `${clerkUser.id}@unknown.local`
+      clerkUser.emailAddresses.find(entry => entry.id === clerkUser.primaryEmailAddressId)?.emailAddress || `${clerkUser.id}@unknown.local`
     const name = [clerkUser.firstName, clerkUser.lastName].filter(Boolean).join(' ') || clerkUser.username || clerkUser.id
     const dbUser = await this.upsertUser({
       email,
@@ -81,7 +81,11 @@ export class ClerkAuthGuard implements CanActivate {
     const issuerRoles = await this.loadIssuerRoles(dbUser.id)
 
     const metadataRole = normalizeRole(clerkUser.publicMetadata.role ?? clerkUser.unsafeMetadata.role)
-    const roles = deriveRoles(dbUser.platform_role, issuerRoles.map(row => row.role), metadataRole)
+    const roles = deriveRoles(
+      dbUser.platform_role,
+      issuerRoles.map(row => row.role),
+      metadataRole,
+    )
     const scope = await this.loadScopeByEmail(email)
     const role = roles.includes('super_admin') ? 'super_admin' : roles[0]!
     return {
@@ -103,14 +107,15 @@ export class ClerkAuthGuard implements CanActivate {
   private async resolveDemoUser(identifier: string): Promise<AuthUser> {
     const dbUser = await this.findUserByEmailOrExternal(identifier)
     if (!dbUser) {
-      throw new UnauthorizedException(
-        `Demo user "${identifier}" not found. Seed demo users first or pass a valid x-demo-user value.`,
-      )
+      throw new UnauthorizedException(`Demo user "${identifier}" not found. Seed demo users first or pass a valid x-demo-user value.`)
     }
 
     const issuerRoles = await this.loadIssuerRoles(dbUser.id)
     const scope = await this.loadScopeByEmail(dbUser.email)
-    const roles = deriveRoles(dbUser.platform_role, issuerRoles.map(row => row.role))
+    const roles = deriveRoles(
+      dbUser.platform_role,
+      issuerRoles.map(row => row.role),
+    )
     const role = roles.includes('super_admin') ? 'super_admin' : roles[0]!
     return {
       accountIds: scope.accountIds,

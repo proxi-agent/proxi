@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common'
 
-import type { Queryable } from '../database/database.service.js'
-import { DatabaseService } from '../database/database.service.js'
 import type { PaginatedResponse } from '../common/pagination.js'
 import { buildPaginated, pageOffset, PaginationQueryDto, resolveSort } from '../common/pagination.js'
+import type { Queryable } from '../database/database.service.js'
+import { DatabaseService } from '../database/database.service.js'
 
 import { domainFromAction } from './audit.events.js'
 import type { AuditEntityType, AuditEvent, AuditSeverity, RecordAuditInput } from './audit.types.js'
@@ -123,10 +123,7 @@ export class AuditService {
 
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const sort = resolveSort(filter, SORTABLE_COLUMNS, { column: 'occurred_at', dir: 'desc' })
-    const countResult = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM audit_events ${whereSql}`,
-      params,
-    )
+    const countResult = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM audit_events ${whereSql}`, params)
     const total = Number(countResult.rows[0]?.count || '0')
 
     params.push(filter.pageSize || 25)
@@ -231,9 +228,7 @@ function toTimelineEntry(event: AuditEvent): AuditTimelineEntry {
 function humanizeAction(action: string): string {
   const parts = action.split('_').filter(Boolean)
   if (!parts.length) return action
-  return parts
-    .map((part, idx) => (idx === 0 ? titleCase(part) : part.toLowerCase()))
-    .join(' ')
+  return parts.map((part, idx) => (idx === 0 ? titleCase(part) : part.toLowerCase())).join(' ')
 }
 
 function titleCase(value: string): string {

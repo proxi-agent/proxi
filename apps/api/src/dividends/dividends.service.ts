@@ -1,8 +1,8 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import type { PoolClient } from 'pg'
 
-import { AuditService } from '../audit/audit.service.js'
 import { AuditActions } from '../audit/audit.events.js'
+import { AuditService } from '../audit/audit.service.js'
 import type { ActorContext } from '../common/actor.js'
 import type { PaginatedResponse } from '../common/pagination.js'
 import { buildPaginated, pageOffset, resolveSort } from '../common/pagination.js'
@@ -128,10 +128,7 @@ export class DividendsService {
     }
     const id = shortId('div')
     return this.database.tx(async client => {
-      const security = await client.query<{ issuer_id: string }>(
-        `SELECT issuer_id FROM securities WHERE id = $1`,
-        [input.securityId],
-      )
+      const security = await client.query<{ issuer_id: string }>(`SELECT issuer_id FROM securities WHERE id = $1`, [input.securityId])
       if (!security.rows.length) {
         throw new NotFoundException(`Security ${input.securityId} not found`)
       }
@@ -301,10 +298,9 @@ export class DividendsService {
 
   async markEntitlementPaid(input: MarkPaidDto, actor: ActorContext): Promise<DividendEntitlement> {
     return this.database.tx(async client => {
-      const existing = await client.query<EntitlementRow>(
-        `SELECT * FROM dividend_entitlements WHERE id = $1 FOR UPDATE`,
-        [input.entitlementId],
-      )
+      const existing = await client.query<EntitlementRow>(`SELECT * FROM dividend_entitlements WHERE id = $1 FOR UPDATE`, [
+        input.entitlementId,
+      ])
       if (!existing.rows.length) {
         throw new NotFoundException(`Entitlement ${input.entitlementId} not found`)
       }
@@ -320,11 +316,7 @@ export class DividendsService {
         `UPDATE dividend_entitlements SET status = 'PAID', paid_at = NOW(), payment_reference = $2,
                                         metadata = $3::jsonb, updated_at = NOW()
          WHERE id = $1 RETURNING *`,
-        [
-          input.entitlementId,
-          input.paymentReference || null,
-          JSON.stringify({ ...current.metadata, ...(input.metadata || {}) }),
-        ],
+        [input.entitlementId, input.paymentReference || null, JSON.stringify({ ...current.metadata, ...(input.metadata || {}) })],
       )
 
       const allRows = await client.query<{ total: string; unpaid: string }>(
@@ -426,7 +418,10 @@ export class DividendsService {
     return buildPaginated(rows.rows.map(mapEntitlement), total, query)
   }
 
-  async listEntitlementsForShareholder(shareholderId: string, query: EntitlementListQuery): Promise<PaginatedResponse<DividendEntitlement>> {
+  async listEntitlementsForShareholder(
+    shareholderId: string,
+    query: EntitlementListQuery,
+  ): Promise<PaginatedResponse<DividendEntitlement>> {
     const q = { ...query, shareholderId }
     const where: string[] = [`shareholder_id = $1`]
     const params: unknown[] = [shareholderId]

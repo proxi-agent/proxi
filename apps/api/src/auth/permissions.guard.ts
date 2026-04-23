@@ -3,13 +3,14 @@ import { ForbiddenException, Injectable } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 
 import { DatabaseService } from '../database/database.service.js'
+
 import type { AuthenticatedRequest } from './authenticated-request.js'
 import { PERMISSIONS_KEY } from './permissions.decorator.js'
 import type { Permission, Role } from './rbac.js'
 import { hasPermission } from './rbac.js'
 import { ROLES_KEY } from './roles.decorator.js'
-import { SCOPE_KEY } from './scope.decorator.js'
 import type { ScopeEntityRule, ScopeRule } from './scope.decorator.js'
+import { SCOPE_KEY } from './scope.decorator.js'
 
 @Injectable()
 export class PermissionsGuard implements CanActivate {
@@ -23,14 +24,8 @@ export class PermissionsGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ])
-    const requiredRoles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ])
-    const scopeRule = this.reflector.getAllAndOverride<ScopeRule | undefined>(SCOPE_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ])
+    const requiredRoles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES_KEY, [context.getHandler(), context.getClass()])
+    const scopeRule = this.reflector.getAllAndOverride<ScopeRule | undefined>(SCOPE_KEY, [context.getHandler(), context.getClass()])
     if (!requiredPermissions?.length && !requiredRoles?.length && !scopeRule) {
       return true
     }
@@ -190,10 +185,7 @@ export class PermissionsGuard implements CanActivate {
 
     const target = queries[String(entity)]
     if (!target) return null
-    const rows = await this.database.query<{ account_id?: string; issuer_id?: string; shareholder_id?: string }>(
-      target.sql,
-      target.values,
-    )
+    const rows = await this.database.query<{ account_id?: string; issuer_id?: string; shareholder_id?: string }>(target.sql, target.values)
     const row = rows.rows[0]
     if (!row) return null
     return {

@@ -14,8 +14,7 @@ export interface MeetingTurnoutInputs {
 
 export function buildMeetingTurnoutInsight(input: MeetingTurnoutInputs): Insight {
   const signals: InsightSignal[] = []
-  const turnoutPct =
-    input.totalEligibleShares > 0 ? (input.totalSharesVoted / input.totalEligibleShares) * 100 : 0
+  const turnoutPct = input.totalEligibleShares > 0 ? (input.totalSharesVoted / input.totalEligibleShares) * 100 : 0
   const ballotPct = input.ballotsIssued > 0 ? (input.ballotsSubmitted / input.ballotsIssued) * 100 : 0
 
   if (input.meeting.status === 'OPEN') {

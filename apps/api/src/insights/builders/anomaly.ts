@@ -57,9 +57,7 @@ export function buildAnomalyInsight(inputs: AnomalyInputs): Insight {
   if (inputs.meetingsBelowQuorum.length > 0) {
     signals.push({
       code: 'BELOW_QUORUM',
-      detail: inputs.meetingsBelowQuorum
-        .map(m => `${m.meetingId}: ${m.turnoutPct.toFixed(1)}% vs ${m.quorumPct}% required`)
-        .join('; '),
+      detail: inputs.meetingsBelowQuorum.map(m => `${m.meetingId}: ${m.turnoutPct.toFixed(1)}% vs ${m.quorumPct}% required`).join('; '),
       label: `${inputs.meetingsBelowQuorum.length} closed meeting${inputs.meetingsBelowQuorum.length === 1 ? '' : 's'} below quorum`,
       severity: 'WARN',
     })

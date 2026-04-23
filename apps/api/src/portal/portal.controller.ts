@@ -1,10 +1,10 @@
 import { Controller, Get, Query } from '@nestjs/common'
 
+import type { AuthUser } from '../auth/auth-user.js'
 import { CurrentUser } from '../auth/current-user.decorator.js'
 import { Permissions } from '../auth/permissions.decorator.js'
 import { Roles } from '../auth/roles.decorator.js'
 import { Scope } from '../auth/scope.decorator.js'
-import type { AuthUser } from '../auth/auth-user.js'
 import { TaskListQuery } from '../tasks/tasks.dto.js'
 import { TasksService } from '../tasks/tasks.service.js'
 import { TransferQueueQuery } from '../transfer-workflow/transfer-workflow.dto.js'
@@ -91,4 +91,3 @@ export class PortalController {
     return this.voting.listBallots(query)
   }
 }
-

@@ -3,9 +3,9 @@ import type { PoolClient } from 'pg'
 
 import { AuditService } from '../audit/audit.service.js'
 import type { ActorContext } from '../common/actor.js'
-import { shortId, uid } from '../common/uid.js'
 import type { PaginatedResponse } from '../common/pagination.js'
 import { buildPaginated, pageOffset, resolveSort } from '../common/pagination.js'
+import { shortId, uid } from '../common/uid.js'
 import { DatabaseService } from '../database/database.service.js'
 import { LedgerService } from '../ledger/ledger.service.js'
 
@@ -129,10 +129,7 @@ export class VotingService {
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const sort = resolveSort(query, MEETING_SORT, { column: 'scheduled_at', dir: 'desc' })
-    const countResult = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM meetings ${whereSql}`,
-      params,
-    )
+    const countResult = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM meetings ${whereSql}`, params)
     const total = Number(countResult.rows[0]?.count || '0')
     params.push(query.pageSize)
     const limitParam = params.length
@@ -292,10 +289,7 @@ export class VotingService {
   }
 
   private async upsertSingleProposal(client: PoolClient, meetingId: string, input: ProposalInputDto): Promise<Proposal> {
-    const existing = await client.query<ProposalRow>(
-      `SELECT * FROM proposals WHERE meeting_id = $1 AND code = $2`,
-      [meetingId, input.code],
-    )
+    const existing = await client.query<ProposalRow>(`SELECT * FROM proposals WHERE meeting_id = $1 AND code = $2`, [meetingId, input.code])
     if (existing.rows.length) {
       const row = existing.rows[0]
       const updated = await client.query<ProposalRow>(
@@ -376,10 +370,7 @@ export class VotingService {
         ballotsIssued += 1
       }
 
-      await client.query(
-        `UPDATE proposals SET status = 'OPEN', updated_at = NOW() WHERE meeting_id = $1 AND status = 'DRAFT'`,
-        [meetingId],
-      )
+      await client.query(`UPDATE proposals SET status = 'OPEN', updated_at = NOW() WHERE meeting_id = $1 AND status = 'DRAFT'`, [meetingId])
       const updated = await client.query<MeetingRow>(
         `UPDATE meetings SET status = 'OPEN', metadata = metadata || jsonb_build_object('securityId', $2::text), updated_at = NOW()
          WHERE id = $1 RETURNING *`,
@@ -409,10 +400,9 @@ export class VotingService {
       if (meeting.status !== 'OPEN') {
         throw new ConflictException(`Cannot close meeting in status ${meeting.status}`)
       }
-      const result = await client.query<MeetingRow>(
-        `UPDATE meetings SET status = 'CLOSED', updated_at = NOW() WHERE id = $1 RETURNING *`,
-        [meetingId],
-      )
+      const result = await client.query<MeetingRow>(`UPDATE meetings SET status = 'CLOSED', updated_at = NOW() WHERE id = $1 RETURNING *`, [
+        meetingId,
+      ])
       await this.auditService.record(
         {
           action: 'MEETING_CLOSED',
@@ -438,10 +428,10 @@ export class VotingService {
       }
       const tallies = await this.computeTalliesInternal(client, meetingId, meeting)
       for (const tally of tallies) {
-        await client.query(
-          `UPDATE proposals SET status = $2, updated_at = NOW() WHERE id = $1`,
-          [tally.proposalId, tally.passed ? 'PASSED' : 'FAILED'],
-        )
+        await client.query(`UPDATE proposals SET status = $2, updated_at = NOW() WHERE id = $1`, [
+          tally.proposalId,
+          tally.passed ? 'PASSED' : 'FAILED',
+        ])
       }
       const result = await client.query<MeetingRow>(
         `UPDATE meetings SET status = 'CERTIFIED', updated_at = NOW() WHERE id = $1 RETURNING *`,
@@ -482,10 +472,7 @@ export class VotingService {
     }
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const sort = resolveSort(query, BALLOT_SORT, { column: 'created_at', dir: 'desc' })
-    const countResult = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM ballots ${whereSql}`,
-      params,
-    )
+    const countResult = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM ballots ${whereSql}`, params)
     const total = Number(countResult.rows[0]?.count || '0')
     params.push(query.pageSize)
     const limitParam = params.length
@@ -523,9 +510,7 @@ export class VotingService {
         throw new ConflictException('Meeting is not open for voting')
       }
 
-      const proposals = await client.query<ProposalRow>(`SELECT * FROM proposals WHERE meeting_id = $1`, [
-        ballot.meeting_id,
-      ])
+      const proposals = await client.query<ProposalRow>(`SELECT * FROM proposals WHERE meeting_id = $1`, [ballot.meeting_id])
       const proposalIds = new Set(proposals.rows.map(row => row.id))
 
       await client.query(`DELETE FROM votes WHERE ballot_id = $1`, [ballotId])

@@ -1,16 +1,5 @@
 import { Type } from 'class-transformer'
-import {
-  IsDateString,
-  IsIn,
-  IsInt,
-  IsObject,
-  IsOptional,
-  IsString,
-  MaxLength,
-  Min,
-  MinLength,
-  ValidateNested,
-} from 'class-validator'
+import { IsDateString, IsIn, IsInt, IsObject, IsOptional, IsString, MaxLength, Min, MinLength, ValidateNested } from 'class-validator'
 
 import { PaginationQueryDto } from '../common/pagination.js'
 

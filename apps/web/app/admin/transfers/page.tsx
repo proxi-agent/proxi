@@ -6,6 +6,7 @@ import { TransferStatusBadge } from '@/components/transfer'
 import { Avatar, Badge, Confidence, EmptyState, PageHeader, Panel } from '@/components/ui'
 import { TRANSFER_TYPE_LABEL } from '@/lib/transfer/copy'
 import { listTransfers } from '@/lib/transfer/mock'
+import { BRANCH_LABEL, BRANCH_TONE, CASE_TYPE_LABEL, classifyWorkflow, PHASE_LABEL, type WorkflowBranch } from '@/lib/transfer/workflow'
 
 function fmtTime(iso: string) {
   return new Date(iso).toLocaleString('en-US', {
@@ -20,6 +21,26 @@ export default function AdminTransfersPage() {
   const all = listTransfers()
   const flagged = all.filter(t => t.status === 'escalated' || t.exceptions.some(e => e.severity === 'high'))
   const needsPolicy = all.filter(t => t.medallion.status === 'waived-affidavit' || t.medallion.status === 'waived-under-threshold')
+
+  const classified = all.map(t => ({ ...classifyWorkflow(t), transfer: t }))
+  const byBranch = classified.reduce<Record<WorkflowBranch, typeof classified>>(
+    (acc, entry) => {
+      if (!acc[entry.branch]) acc[entry.branch] = [] as typeof classified
+      acc[entry.branch].push(entry)
+      return acc
+    },
+    {} as Record<WorkflowBranch, typeof classified>,
+  )
+  const branchOrder: WorkflowBranch[] = [
+    'stop_transfer_order',
+    'adverse_claim',
+    'estate_succession',
+    'deceased_owner',
+    'issuer_legal_opinion',
+    'restriction_review',
+    'fiduciary_review',
+    'standard',
+  ]
 
   return (
     <AppShell breadcrumbs={[{ href: '/admin', label: 'Admin' }, { label: 'Transfers' }]} portal='admin'>
@@ -38,6 +59,51 @@ export default function AdminTransfersPage() {
 
       <div className='grid grid-cols-1 gap-5 lg:grid-cols-[1fr_320px]'>
         <div className='flex flex-col gap-5'>
+          <Panel
+            subtitle='Every transfer case in the queue, grouped by the workflow branch it is currently routed through.'
+            title='Workflow branches'
+          >
+            <div className='flex flex-col gap-3'>
+              {branchOrder
+                .filter(b => (byBranch[b]?.length ?? 0) > 0)
+                .map(branch => {
+                  const entries = byBranch[branch]
+                  return (
+                    <div className='soft-box' key={branch}>
+                      <div className='flex items-center justify-between'>
+                        <div className='flex items-center gap-2'>
+                          <Badge tone={BRANCH_TONE[branch]}>{BRANCH_LABEL[branch]}</Badge>
+                          <span className='text-[12px] text-ink-500'>
+                            {entries.length} case{entries.length === 1 ? '' : 's'}
+                          </span>
+                        </div>
+                      </div>
+                      <ul className='mt-2 flex flex-col gap-1.5'>
+                        {entries.slice(0, 4).map(({ caseType, phase, transfer }) => (
+                          <li className='flex items-center justify-between text-[12px]' key={transfer.id}>
+                            <div className='flex min-w-0 items-center gap-2'>
+                              <span className='font-semibold text-ink-900'>{transfer.id}</span>
+                              <span className='truncate text-ink-500'>{transfer.holder.name}</span>
+                              <span className='text-ink-400'>·</span>
+                              <span className='text-ink-500'>{CASE_TYPE_LABEL[caseType]}</span>
+                            </div>
+                            <div className='flex items-center gap-2'>
+                              <Badge tone='neutral'>{PHASE_LABEL[phase]}</Badge>
+                              <Link className='btn btn-ghost btn-sm' href={`/agent/transfers/${transfer.id}`}>
+                                Open
+                                <Icon name='arrow-right' size={12} />
+                              </Link>
+                            </div>
+                          </li>
+                        ))}
+                        {entries.length > 4 && <li className='text-[11.5px] text-ink-400'>+{entries.length - 4} more in this branch</li>}
+                      </ul>
+                    </div>
+                  )
+                })}
+            </div>
+          </Panel>
+
           <Panel subtitle='Escalated cases and high-severity exceptions across all issuers' title='High-risk transfers'>
             {flagged.length === 0 ? (
               <EmptyState icon='shield-check' title='No high-risk transfers'>

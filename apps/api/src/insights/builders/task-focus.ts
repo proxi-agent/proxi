@@ -115,9 +115,7 @@ export function buildTaskFocusInsight(tasks: Task[], limit = 5, now = new Date()
   const summary =
     ranked.length === 0
       ? 'Queue is clear – no critical or overdue tasks detected.'
-      : ranked
-          .map((item, index) => `${index + 1}. ${item.task.title} (${item.reasons.join(', ') || 'ranked by priority'})`)
-          .join('\n')
+      : ranked.map((item, index) => `${index + 1}. ${item.task.title} (${item.reasons.join(', ') || 'ranked by priority'})`).join('\n')
 
   return {
     data: { ranked: ranked.map(item => ({ reasons: item.reasons, score: item.score, taskId: item.task.id })) },

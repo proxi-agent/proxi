@@ -3,8 +3,8 @@ import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common'
 import { Permissions } from '../auth/permissions.decorator.js'
 
 import { ActivitySearchDto, CopilotQueryDto, TaskFocusDto } from './insights.dto.js'
-import type { Insight } from './insights.types.js'
 import { InsightsService } from './insights.service.js'
+import type { Insight } from './insights.types.js'
 
 /**
  * Insight endpoints – grounded, AI-ready, safe to call without an LLM key.

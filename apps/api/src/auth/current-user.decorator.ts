@@ -7,4 +7,3 @@ export const CurrentUser = createParamDecorator((_: unknown, ctx: ExecutionConte
   const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>()
   return request.authUser
 })
-

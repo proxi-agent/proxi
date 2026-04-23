@@ -36,4 +36,3 @@ export interface ScopeRule {
 
 export const SCOPE_KEY = 'auth_scope'
 export const Scope = (rule: ScopeRule) => SetMetadata(SCOPE_KEY, rule)
-

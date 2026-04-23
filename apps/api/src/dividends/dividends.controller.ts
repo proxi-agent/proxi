@@ -7,13 +7,7 @@ import { Permissions } from '../auth/permissions.decorator.js'
 import { Scope } from '../auth/scope.decorator.js'
 import { actorFromRequest } from '../common/actor.js'
 
-import {
-  CreateDividendDto,
-  DividendListQuery,
-  EntitlementListQuery,
-  MarkPaidDto,
-  UpdateDividendDto,
-} from './dividends.dto.js'
+import { CreateDividendDto, DividendListQuery, EntitlementListQuery, MarkPaidDto, UpdateDividendDto } from './dividends.dto.js'
 import { DividendsService } from './dividends.service.js'
 
 class CancelDividendBody {
@@ -53,11 +47,7 @@ export class DividendsController {
   @Permissions('agent.admin')
   @Patch(':id')
   @Scope({ entityRule: { entity: 'dividend' } })
-  async update(
-    @Param('id') id: string,
-    @Body() body: UpdateDividendDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async update(@Param('id') id: string, @Body() body: UpdateDividendDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.dividendsService.update(id, body, actorFromRequest(request))
   }
 
@@ -78,11 +68,7 @@ export class DividendsController {
   @Permissions('agent.admin')
   @Post(':id/cancel')
   @Scope({ entityRule: { entity: 'dividend' } })
-  async cancel(
-    @Param('id') id: string,
-    @Body() body: CancelDividendBody,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async cancel(@Param('id') id: string, @Body() body: CancelDividendBody, @CurrentRequest() request: AuthenticatedRequest) {
     return this.dividendsService.cancel(id, actorFromRequest(request), body.reason)
   }
 

@@ -38,11 +38,7 @@ export class SecuritiesController {
 
   @Permissions('agent.admin')
   @Post(':id/classes')
-  async upsertClass(
-    @Param('id') id: string,
-    @Body() body: ShareClassInputDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async upsertClass(@Param('id') id: string, @Body() body: ShareClassInputDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.securitiesService.upsertShareClass(id, body, actorFromRequest(request))
   }
 }

@@ -3,22 +3,14 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { AuditActions } from '../audit/audit.events.js'
 import { AuditService } from '../audit/audit.service.js'
 import type { ActorContext } from '../common/actor.js'
-import type { Queryable } from '../database/database.service.js'
 import type { PaginatedResponse } from '../common/pagination.js'
 import { buildPaginated, pageOffset, resolveSort } from '../common/pagination.js'
 import { shortId } from '../common/uid.js'
+import type { Queryable } from '../database/database.service.js'
 import { DatabaseService } from '../database/database.service.js'
 
 import type { CreateTaskDto, TaskListQuery, TransitionTaskDto, UpdateTaskDto } from './tasks.dto.js'
-import type {
-  Task,
-  TaskPriority,
-  TaskRecommendedAction,
-  TaskSeverity,
-  TaskSource,
-  TaskStatus,
-  TaskType,
-} from './tasks.types.js'
+import type { Task, TaskPriority, TaskRecommendedAction, TaskSeverity, TaskSource, TaskStatus, TaskType } from './tasks.types.js'
 import { canTransition } from './tasks.types.js'
 
 /** Open statuses — used as the default "active" set for dedup and bulk close. */
@@ -112,10 +104,7 @@ export class TasksService {
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const sort = resolveSort(query, SORT, { column: 'created_at', dir: 'desc' })
 
-    const countResult = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM tasks ${whereSql}`,
-      params,
-    )
+    const countResult = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tasks ${whereSql}`, params)
     const total = Number(countResult.rows[0]?.count || '0')
 
     params.push(query.pageSize)
@@ -242,12 +231,7 @@ export class TasksService {
            metadata = metadata || $4::jsonb,
            updated_at = NOW()
          WHERE id = $1 RETURNING *`,
-        [
-          id,
-          input.status,
-          actor.actorId,
-          JSON.stringify(input.note ? { lastNote: input.note } : {}),
-        ],
+        [id, input.status, actor.actorId, JSON.stringify(input.note ? { lastNote: input.note } : {})],
       )
       await this.auditService.record(
         {
@@ -454,10 +438,7 @@ export class TasksService {
        ${whereSql ? `${whereSql} AND` : 'WHERE'} status IN ('OPEN','IN_REVIEW','BLOCKED') AND due_at < NOW()`,
       params,
     )
-    const totalRows = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM tasks ${whereSql}`,
-      params,
-    )
+    const totalRows = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM tasks ${whereSql}`, params)
 
     const byStatus: Record<TaskStatus, number> = {
       BLOCKED: 0,

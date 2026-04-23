@@ -33,17 +33,13 @@ function makeCase(overrides: Partial<Case>): Case {
 
 describe('transfer insight builder', () => {
   it('marks blocked transfers with CRITICAL severity', () => {
-    const insight = buildTransferInsight(
-      makeCase({ restrictionBlockingReasons: ['TAX_ID_MISMATCH'] }),
-    )
+    const insight = buildTransferInsight(makeCase({ restrictionBlockingReasons: ['TAX_ID_MISMATCH'] }))
     assert.equal(insight.signals[0].severity, 'CRITICAL')
     assert.match(insight.headline, /blocked/i)
   })
 
   it('reports missing evidence as a WARN signal with list of documents', () => {
-    const insight = buildTransferInsight(
-      makeCase({ missingEvidence: ['MEDALLION', 'W9'] }),
-    )
+    const insight = buildTransferInsight(makeCase({ missingEvidence: ['MEDALLION', 'W9'] }))
     const evidence = insight.signals.find(signal => signal.code === 'EVIDENCE_MISSING')
     assert.ok(evidence)
     assert.equal(evidence?.severity, 'WARN')
@@ -51,9 +47,7 @@ describe('transfer insight builder', () => {
   })
 
   it('reports success when transfer is completed', () => {
-    const insight = buildTransferInsight(
-      makeCase({ ledgerEventId: 7, lifecycleStage: 'COMPLETED', status: 'COMPLETED' }),
-    )
+    const insight = buildTransferInsight(makeCase({ ledgerEventId: 7, lifecycleStage: 'COMPLETED', status: 'COMPLETED' }))
     assert.equal(insight.signals[0].severity, 'SUCCESS')
     assert.match(insight.headline, /settled successfully/i)
   })

@@ -81,11 +81,7 @@ export class AuditController {
   @Permissions('report.view')
   @Roles('agent_admin', 'issuer_admin', 'issuer_operator', 'super_admin', 'transfer_agent_admin')
   @Get('timeline/:entityType/:entityId')
-  async timeline(
-    @Param('entityType') entityType: AuditEntityType,
-    @Param('entityId') entityId: string,
-    @Query() query: TimelineQueryDto,
-  ) {
+  async timeline(@Param('entityType') entityType: AuditEntityType, @Param('entityId') entityId: string, @Query() query: TimelineQueryDto) {
     return this.auditService.timeline(entityType, entityId, query)
   }
 }

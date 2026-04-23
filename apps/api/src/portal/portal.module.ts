@@ -6,4 +6,3 @@ import { PortalController } from './portal.controller.js'
   controllers: [PortalController],
 })
 export class PortalModule {}
-

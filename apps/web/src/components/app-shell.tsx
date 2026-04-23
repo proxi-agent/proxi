@@ -107,10 +107,7 @@ function TopBar({ breadcrumbs, portal }: { breadcrumbs?: Array<{ label: string; 
         <div className='divider-vert mx-1' />
         <button aria-label='Inbox' className='btn btn-ghost btn-icon btn-sm relative' type='button'>
           <Icon name='inbox' size={15} />
-          <span
-            aria-hidden
-            className='absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand-500 ring-2 ring-surface'
-          />
+          <span aria-hidden className='absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-brand-500 ring-2 ring-surface' />
         </button>
         <button aria-label='Settings' className='btn btn-ghost btn-icon btn-sm' type='button'>
           <Icon name='settings' size={15} />

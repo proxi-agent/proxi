@@ -8,6 +8,8 @@ import type {
   TransferState,
 } from '@prisma/client'
 
+import type { Branch, CasePhase, CaseType, WorkflowCaseEnvelope } from './case/case-types.js'
+
 /**
  * A read-shaped transfer request. BigInt columns are serialized as `number`
  * so the wire format stays JSON-friendly; the MVP's realistic share counts
@@ -40,6 +42,10 @@ export interface TransferRequestSummary {
   settledAt?: Date
   createdAt: Date
   updatedAt: Date
+  caseType: CaseType
+  branch: Branch
+  phase: CasePhase
+  phaseLabel: string
 }
 
 export interface TransferReviewEntry {
@@ -90,4 +96,5 @@ export interface TransferDetail extends TransferRequestSummary {
   reviews: TransferReviewEntry[]
   timeline: TransferTimelineEntry[]
   ledgerImpactPreview: LedgerImpactPreview
+  case: WorkflowCaseEnvelope
 }

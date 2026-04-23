@@ -48,22 +48,14 @@ export class TasksController {
   @Permissions('agent.admin', 'transfer.review')
   @Patch(':id')
   @Scope({ entityRule: { entity: 'task' } })
-  async update(
-    @Param('id') id: string,
-    @Body() body: UpdateTaskDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async update(@Param('id') id: string, @Body() body: UpdateTaskDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.tasksService.update(id, body, actorFromRequest(request))
   }
 
   @Permissions('agent.admin', 'transfer.review')
   @Post(':id/transition')
   @Scope({ entityRule: { entity: 'task' } })
-  async transition(
-    @Param('id') id: string,
-    @Body() body: TransitionTaskDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async transition(@Param('id') id: string, @Body() body: TransitionTaskDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.tasksService.transition(id, body, actorFromRequest(request))
   }
 }

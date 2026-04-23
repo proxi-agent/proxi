@@ -72,10 +72,7 @@ export class SecuritiesService {
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const sort = resolveSort(query, SORTABLE, { column: 'created_at', dir: 'desc' })
 
-    const countResult = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM securities ${whereSql}`,
-      params,
-    )
+    const countResult = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM securities ${whereSql}`, params)
     const total = Number(countResult.rows[0]?.count || '0')
 
     params.push(query.pageSize)
@@ -104,9 +101,7 @@ export class SecuritiesService {
       byId.get(cls.security_id)?.classes.push(cls)
     }
 
-    const items = rows.rows.map(row =>
-      mapSecurity(row, byId.get(row.id)?.classes || [], byId.get(row.id)?.outstanding || 0),
-    )
+    const items = rows.rows.map(row => mapSecurity(row, byId.get(row.id)?.classes || [], byId.get(row.id)?.outstanding || 0))
     return buildPaginated(items, total, query)
   }
 
@@ -115,10 +110,7 @@ export class SecuritiesService {
     if (!result.rows.length) {
       throw new NotFoundException(`Security ${id} not found`)
     }
-    const classes = await this.database.query<ShareClassRow>(
-      `SELECT * FROM share_classes WHERE security_id = $1 ORDER BY code ASC`,
-      [id],
-    )
+    const classes = await this.database.query<ShareClassRow>(`SELECT * FROM share_classes WHERE security_id = $1 ORDER BY code ASC`, [id])
     const outstanding = (await this.computeOutstanding([id])).get(id) || 0
     return mapSecurity(result.rows[0], classes.rows, outstanding)
   }
@@ -187,10 +179,7 @@ export class SecuritiesService {
           JSON.stringify({ ...current.metadata, ...(input.metadata || {}) }),
         ],
       )
-      const classes = await client.query<ShareClassRow>(
-        `SELECT * FROM share_classes WHERE security_id = $1 ORDER BY code ASC`,
-        [id],
-      )
+      const classes = await client.query<ShareClassRow>(`SELECT * FROM share_classes WHERE security_id = $1 ORDER BY code ASC`, [id])
       await this.auditService.record(
         {
           action: 'SECURITY_UPDATED',
@@ -231,17 +220,13 @@ export class SecuritiesService {
     })
   }
 
-  private async upsertShareClasses(
-    client: PoolClient,
-    securityId: string,
-    inputs: ShareClassInputDto[],
-  ): Promise<ShareClass[]> {
+  private async upsertShareClasses(client: PoolClient, securityId: string, inputs: ShareClassInputDto[]): Promise<ShareClass[]> {
     const results: ShareClass[] = []
     for (const input of inputs) {
-      const existing = await client.query<ShareClassRow>(
-        `SELECT * FROM share_classes WHERE security_id = $1 AND code = $2`,
-        [securityId, input.code],
-      )
+      const existing = await client.query<ShareClassRow>(`SELECT * FROM share_classes WHERE security_id = $1 AND code = $2`, [
+        securityId,
+        input.code,
+      ])
       if (existing.rows.length) {
         const row = existing.rows[0]
         const updated = await client.query<ShareClassRow>(

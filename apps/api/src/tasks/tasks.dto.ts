@@ -1,26 +1,9 @@
 import { Type } from 'class-transformer'
-import {
-  IsArray,
-  IsDateString,
-  IsIn,
-  IsObject,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-  ValidateNested,
-} from 'class-validator'
+import { IsArray, IsDateString, IsIn, IsObject, IsOptional, IsString, MaxLength, MinLength, ValidateNested } from 'class-validator'
 
 import { PaginationQueryDto } from '../common/pagination.js'
 
-import type {
-  TaskPriority,
-  TaskRecommendedAction,
-  TaskSeverity,
-  TaskSource,
-  TaskStatus,
-  TaskType,
-} from './tasks.types.js'
+import type { TaskPriority, TaskRecommendedAction, TaskSeverity, TaskSource, TaskStatus, TaskType } from './tasks.types.js'
 
 const PRIORITIES: TaskPriority[] = ['CRITICAL', 'HIGH', 'LOW', 'MEDIUM']
 const SEVERITIES: TaskSeverity[] = ['CRITICAL', 'ERROR', 'INFO', 'WARN']

@@ -204,8 +204,8 @@ export default async function InvestorTransferDetail({ params }: { params: Promi
             <Panel subtitle='Messages between you and the transfer-agent team about this case' title='Messages'>
               {transfer.reviewerNotes.length === 0 ? (
                 <EmptyState icon='message-square' title='No messages yet'>
-                  If the transfer-agent team needs clarification or additional documents, their requests will appear here — and we&apos;ll notify
-                  you in your inbox.
+                  If the transfer-agent team needs clarification or additional documents, their requests will appear here — and we&apos;ll
+                  notify you in your inbox.
                 </EmptyState>
               ) : (
                 <ul className='flex flex-col gap-3'>

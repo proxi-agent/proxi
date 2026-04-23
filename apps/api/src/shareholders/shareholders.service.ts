@@ -109,10 +109,7 @@ export class ShareholdersService {
     const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : ''
     const sort = resolveSort(query, SORTABLE, { column: 'legal_name', dir: 'asc' })
 
-    const countResult = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM shareholders ${whereSql}`,
-      params,
-    )
+    const countResult = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM shareholders ${whereSql}`, params)
     const total = Number(countResult.rows[0]?.count || '0')
 
     params.push(query.pageSize)
@@ -238,10 +235,10 @@ export class ShareholdersService {
     return this.database.tx(async client => {
       const shareholder = await this.findShareholderForUpdate(client, input.shareholderId)
       const id = shortId('acct')
-      const duplicate = await client.query(
-        `SELECT id FROM shareholder_accounts WHERE issuer_id = $1 AND account_number = $2`,
-        [shareholder.issuer_id, input.accountNumber],
-      )
+      const duplicate = await client.query(`SELECT id FROM shareholder_accounts WHERE issuer_id = $1 AND account_number = $2`, [
+        shareholder.issuer_id,
+        input.accountNumber,
+      ])
       if (duplicate.rows.length) {
         throw new BadRequestException(`Account number ${input.accountNumber} already exists for this issuer`)
       }
@@ -278,10 +275,7 @@ export class ShareholdersService {
 
   async updateAccount(id: string, input: UpdateAccountDto, actor: ActorContext): Promise<ShareholderAccount> {
     return this.database.tx(async client => {
-      const existing = await client.query<AccountRow>(
-        `SELECT * FROM shareholder_accounts WHERE id = $1 FOR UPDATE`,
-        [id],
-      )
+      const existing = await client.query<AccountRow>(`SELECT * FROM shareholder_accounts WHERE id = $1 FOR UPDATE`, [id])
       if (!existing.rows.length) {
         throw new NotFoundException(`Account ${id} not found`)
       }
@@ -340,10 +334,7 @@ export class ShareholdersService {
   }
 
   private async findShareholderForUpdate(client: PoolClient, shareholderId: string): Promise<ShareholderRow> {
-    const result = await client.query<ShareholderRow>(
-      `SELECT * FROM shareholders WHERE id = $1 FOR UPDATE`,
-      [shareholderId],
-    )
+    const result = await client.query<ShareholderRow>(`SELECT * FROM shareholders WHERE id = $1 FOR UPDATE`, [shareholderId])
     if (!result.rows.length) {
       throw new NotFoundException(`Shareholder ${shareholderId} not found`)
     }

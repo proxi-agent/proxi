@@ -6,9 +6,11 @@ import { DividendsService } from '../dividends/dividends.service.js'
 import { IssuersService } from '../issuers/issuers.service.js'
 import { LedgerService } from '../ledger/ledger.service.js'
 import { NoticesService } from '../notices/notices.service.js'
+import { PrismaService } from '../prisma/prisma.service.js'
 import { SecuritiesService } from '../securities/securities.service.js'
 import { ShareholdersService } from '../shareholders/shareholders.service.js'
 import { TasksService } from '../tasks/tasks.service.js'
+import { TransferWorkflowService } from '../transfer-workflow/transfer-workflow.service.js'
 import { VotingService } from '../voting/voting.service.js'
 
 const SYSTEM_ACTOR: ActorContext = {
@@ -28,6 +30,7 @@ interface SeedSummary {
   tasks: number
   notices: number
   ballots: number
+  transferCases: number
 }
 
 interface ShareholderSeed {
@@ -102,6 +105,8 @@ export class SeedService {
     private readonly votingService: VotingService,
     private readonly noticesService: NoticesService,
     private readonly tasksService: TasksService,
+    private readonly transferWorkflow: TransferWorkflowService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async isSeeded(): Promise<boolean> {
@@ -339,11 +344,7 @@ export class SeedService {
         choice: idx === 2 && index % 2 === 0 ? 'AGAINST' : choice,
         proposalId: proposal.id,
       })) as Array<{ choice: 'ABSTAIN' | 'AGAINST' | 'FOR'; proposalId: string }>
-      await this.votingService.submitBallot(
-        ballot.id,
-        { controlNumber: ballot.controlNumber, votes },
-        SYSTEM_ACTOR,
-      )
+      await this.votingService.submitBallot(ballot.id, { controlNumber: ballot.controlNumber, votes }, SYSTEM_ACTOR)
       ballotsSubmitted += 1
     }
 
@@ -413,6 +414,14 @@ export class SeedService {
       SYSTEM_ACTOR,
     )
 
+    const transferCases = await this.seedTransferCases({
+      issuerId: issuer.id,
+      securityId: security.id,
+      shareClassIdA: security.shareClasses.find(c => c.code === 'A')?.id ?? security.shareClasses[0].id,
+      shareClassIdB: security.shareClasses.find(c => c.code === 'B')?.id ?? security.shareClasses[0].id,
+      shareholders,
+    })
+
     const summary: SeedSummary = {
       accounts: shareholders.length,
       ballots: ballotsSubmitted,
@@ -424,10 +433,311 @@ export class SeedService {
       securities: 1,
       shareholders: shareholders.length,
       tasks: 2,
+      transferCases,
       users: usersCreated,
     }
     this.logger.log(`Seed complete: ${JSON.stringify(summary)}`)
     return summary
+  }
+
+  /**
+   * Demo data covering the full workflow branching set so reviewers can
+   * see every state the admin UI might render on a fresh install.
+   *
+   * Each scenario is constructed by driving the real workflow service —
+   * `create → intake → runAutomatedReview → (branch) → …` — so the
+   * resulting rows exercise the same paths production uses.
+   */
+  private async seedTransferCases(args: {
+    issuerId: string
+    securityId: string
+    shareClassIdA: string
+    shareClassIdB: string
+    shareholders: Array<{ accountId: string; accountNumber: string; initialShares: number; shareholderId: string }>
+  }): Promise<number> {
+    const [alpha, aurora, banyan, delta, epsilon] = args.shareholders
+    const common = {
+      issuerId: args.issuerId,
+      securityId: args.securityId,
+      shareClassId: args.shareClassIdA,
+    }
+
+    let created = 0
+
+    // 1. Normal successful transfer — auto-passes, gets approved + settled.
+    {
+      const t = await this.transferWorkflow.create(
+        {
+          ...common,
+          fromAccountId: alpha.accountId,
+          intakeMethod: 'GUIDED_ENTRY',
+          quantity: 1_500,
+          submit: true,
+          toAccountId: delta.accountId,
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runIntake(
+        t.id,
+        {
+          caseType: 'standard_individual',
+          destinationKind: 'individual',
+          estimatedValueUsd: 45_000,
+          extractedFields: {
+            fieldConfidence: { registration: 0.95, transferorName: 0.96, transfereeName: 0.95 },
+            registration: 'Alpha Capital Partners LP',
+            sharesRequested: 1500,
+            transfereeName: 'Delta Ventures Pte',
+            transferorName: 'Alpha Capital Partners LP',
+          },
+          intakeSource: 'portal',
+          submittedDocumentCodes: ['stock_power', 'gov_id_transferor', 'w9', 'medallion'],
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runAutomatedReview(
+        t.id,
+        {
+          registeredAccountOwner: 'Alpha Capital Partners LP',
+          registeredHolderName: 'Alpha Capital Partners LP',
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.approve(t.id, { notes: 'Dual-control approval (seed)' }, SYSTEM_ACTOR)
+      await this.transferWorkflow.scheduleSettlement(t.id, SYSTEM_ACTOR)
+      for (const step of [
+        'validate_registration',
+        'validate_tax_docs',
+        'cancel_old_position',
+        'issue_new_position',
+        'generate_drs_statement',
+        'confirm_prior_cancellation',
+      ] as const) {
+        await this.transferWorkflow.advanceSettlementStep(t.id, { status: 'completed', step }, SYSTEM_ACTOR)
+      }
+      await this.transferWorkflow.settle(t.id, { notes: 'Final settlement (seed)' }, SYSTEM_ACTOR)
+      created += 1
+    }
+
+    // 2. Missing documents — awaiting_documents branch.
+    {
+      const t = await this.transferWorkflow.create(
+        {
+          ...common,
+          fromAccountId: aurora.accountId,
+          intakeMethod: 'DOCUMENT_UPLOAD',
+          quantity: 2_500,
+          submit: true,
+          toAccountId: banyan.accountId,
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runIntake(
+        t.id,
+        {
+          caseType: 'gift',
+          destinationKind: 'individual',
+          extractedFields: {
+            fieldConfidence: { transferorName: 0.82 },
+            transferorName: 'Aurora Growth Fund Ltd',
+          },
+          intakeSource: 'form_upload',
+          submittedDocumentCodes: ['stock_power'],
+        },
+        SYSTEM_ACTOR,
+      )
+      created += 1
+    }
+
+    // 3. Low-confidence → manual review.
+    {
+      const t = await this.transferWorkflow.create(
+        {
+          ...common,
+          fromAccountId: delta.accountId,
+          intakeMethod: 'DOCUMENT_UPLOAD',
+          quantity: 500,
+          submit: true,
+          toAccountId: alpha.accountId,
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runIntake(
+        t.id,
+        {
+          caseType: 'standard_individual',
+          destinationKind: 'individual',
+          extractedFields: {
+            fieldConfidence: { registration: 0.55, transferorName: 0.6, transfereeName: 0.6 },
+            transferorName: 'Delta Ventures Pte',
+          },
+          intakeSource: 'form_upload',
+          submittedDocumentCodes: ['stock_power', 'gov_id_transferor', 'w9'],
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runAutomatedReview(t.id, { registeredHolderName: 'Delta Ventures Pte' }, SYSTEM_ACTOR)
+      created += 1
+    }
+
+    // 4. Stop transfer order branch.
+    {
+      const t = await this.transferWorkflow.create(
+        {
+          ...common,
+          fromAccountId: banyan.accountId,
+          quantity: 10_000,
+          submit: true,
+          toAccountId: alpha.accountId,
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runIntake(
+        t.id,
+        {
+          caseType: 'standard_individual',
+          destinationKind: 'individual',
+          extractedFields: { transferorName: 'Banyan Trust Services' },
+          submittedDocumentCodes: ['stock_power', 'gov_id_transferor', 'w9', 'medallion'],
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.raiseStopOrder(
+        t.id,
+        { reason: 'Court-ordered stop transfer pending dispute resolution.', referenceCode: 'STO-2026-0042' },
+        SYSTEM_ACTOR,
+      )
+      created += 1
+    }
+
+    // 5. Adverse claim branch.
+    if (epsilon) {
+      const t = await this.transferWorkflow.create(
+        {
+          ...common,
+          fromAccountId: epsilon.accountId,
+          quantity: 3_200,
+          submit: true,
+          toAccountId: delta.accountId,
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runIntake(
+        t.id,
+        {
+          caseType: 'fiduciary',
+          destinationKind: 'individual',
+          extractedFields: { transferorName: 'Epsilon Family Office' },
+          submittedDocumentCodes: ['stock_power', 'fiduciary_appointment', 'gov_id_transferor', 'court_order'],
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.raiseAdverseClaim(
+        t.id,
+        { claimantName: 'Jane Doe (former beneficiary)', reason: 'Beneficiary contests authority to transfer fiduciary assets.' },
+        SYSTEM_ACTOR,
+      )
+      created += 1
+    }
+
+    // 6. Deceased-owner estate path.
+    {
+      const t = await this.transferWorkflow.create(
+        {
+          ...common,
+          fromAccountId: alpha.accountId,
+          quantity: 800,
+          submit: true,
+          toAccountId: banyan.accountId,
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runIntake(
+        t.id,
+        {
+          caseType: 'estate',
+          destinationKind: 'trust',
+          needsInheritanceWaiver: true,
+          submittedDocumentCodes: ['stock_power', 'death_certificate', 'affidavit_of_domicile', 'fiduciary_appointment'],
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.raiseDeceasedFlag(
+        t.id,
+        {
+          dateOfDeath: dateDaysAgo(40).slice(0, 10),
+          reason: 'Estate transfer request; validate succession documents.',
+          waiverRequired: true,
+        },
+        SYSTEM_ACTOR,
+      )
+      created += 1
+    }
+
+    // 7. Restricted shares → legal opinion path.
+    {
+      const t = await this.transferWorkflow.create(
+        {
+          ...common,
+          fromAccountId: alpha.accountId,
+          kind: 'CANCELLATION',
+          quantity: 5_000,
+          shareClassId: args.shareClassIdB,
+          submit: true,
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runIntake(
+        t.id,
+        {
+          caseType: 'restricted_shares',
+          destinationKind: 'individual',
+          estimatedValueUsd: 180_000,
+          extractedFields: { transferorName: 'Alpha Capital Partners LP' },
+          submittedDocumentCodes: ['stock_power', 'representation_letter', 'gov_id_transferor'],
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.raiseRestriction(
+        t.id,
+        { category: 'rule_144', reason: 'Rule 144 analysis required before legend removal.' },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.requestLegalOpinion(t.id, { provider: 'Issuer external counsel' }, SYSTEM_ACTOR)
+      created += 1
+    }
+
+    // 8. Failed transfer — documents timeout.
+    {
+      const t = await this.transferWorkflow.create(
+        {
+          ...common,
+          fromAccountId: aurora.accountId,
+          quantity: 1_250,
+          submit: true,
+          toAccountId: delta.accountId,
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.runIntake(
+        t.id,
+        {
+          caseType: 'gift',
+          destinationKind: 'individual',
+          submittedDocumentCodes: ['stock_power'],
+        },
+        SYSTEM_ACTOR,
+      )
+      await this.transferWorkflow.failCase(
+        t.id,
+        { code: 'documents_timeout', reason: 'Supplemental documents not received within 30-day window.' },
+        SYSTEM_ACTOR,
+      )
+      created += 1
+    }
+
+    this.logger.log(`Seeded ${created} transfer case(s) covering full workflow branches`)
+    return created
   }
 
   async reset(): Promise<void> {

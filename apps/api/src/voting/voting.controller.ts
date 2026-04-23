@@ -7,14 +7,7 @@ import { Permissions } from '../auth/permissions.decorator.js'
 import { Scope } from '../auth/scope.decorator.js'
 import { actorFromRequest } from '../common/actor.js'
 
-import {
-  BallotListQuery,
-  BulkProposalsDto,
-  CreateMeetingDto,
-  MeetingListQuery,
-  SubmitBallotDto,
-  UpdateMeetingDto,
-} from './voting.dto.js'
+import { BallotListQuery, BulkProposalsDto, CreateMeetingDto, MeetingListQuery, SubmitBallotDto, UpdateMeetingDto } from './voting.dto.js'
 import { VotingService } from './voting.service.js'
 
 class OpenMeetingDto {
@@ -50,33 +43,21 @@ export class VotingController {
   @Permissions('agent.admin')
   @Patch('meetings/:id')
   @Scope({ entityRule: { entity: 'meeting' } })
-  async updateMeeting(
-    @Param('id') id: string,
-    @Body() body: UpdateMeetingDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async updateMeeting(@Param('id') id: string, @Body() body: UpdateMeetingDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.votingService.updateMeeting(id, body, actorFromRequest(request))
   }
 
   @Permissions('agent.admin')
   @Post('meetings/:id/proposals')
   @Scope({ entityRule: { entity: 'meeting' } })
-  async upsertProposals(
-    @Param('id') id: string,
-    @Body() body: BulkProposalsDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async upsertProposals(@Param('id') id: string, @Body() body: BulkProposalsDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.votingService.upsertProposals(id, body, actorFromRequest(request))
   }
 
   @Permissions('agent.admin')
   @Post('meetings/:id/open')
   @Scope({ entityRule: { entity: 'meeting' } })
-  async open(
-    @Param('id') id: string,
-    @Body() body: OpenMeetingDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async open(@Param('id') id: string, @Body() body: OpenMeetingDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.votingService.openMeeting(id, body.securityId, actorFromRequest(request))
   }
 
@@ -118,11 +99,7 @@ export class VotingController {
   @Permissions('shareholder.transfer.create', 'transfer.view')
   @Post('ballots/:id/submit')
   @Scope({ entityRule: { entity: 'ballot' } })
-  async submitBallot(
-    @Param('id') id: string,
-    @Body() body: SubmitBallotDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async submitBallot(@Param('id') id: string, @Body() body: SubmitBallotDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.votingService.submitBallot(id, body, actorFromRequest(request))
   }
 }

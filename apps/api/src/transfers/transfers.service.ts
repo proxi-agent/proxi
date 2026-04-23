@@ -146,10 +146,13 @@ export class TransfersService {
        GROUP BY type, lifecycle_stage`,
     )
 
-    const byState = TRANSFER_STATES.reduce<Record<TransferState, number>>((accumulator, state) => {
-      accumulator[state] = 0
-      return accumulator
-    }, {} as Record<TransferState, number>)
+    const byState = TRANSFER_STATES.reduce<Record<TransferState, number>>(
+      (accumulator, state) => {
+        accumulator[state] = 0
+        return accumulator
+      },
+      {} as Record<TransferState, number>,
+    )
     const byType: Record<CaseType, number> = { CANCEL: 0, ISSUE: 0, TRANSFER: 0 }
     let total = 0
 

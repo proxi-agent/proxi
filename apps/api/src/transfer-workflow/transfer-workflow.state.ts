@@ -24,21 +24,12 @@ import { TransferLifecycleStage, TransferState } from '@prisma/client'
  * mutate `state` directly.
  */
 
-const TERMINAL_STATES = new Set<TransferState>([
-  TransferState.CANCELLED,
-  TransferState.REJECTED,
-  TransferState.SETTLED,
-])
+const TERMINAL_STATES = new Set<TransferState>([TransferState.CANCELLED, TransferState.REJECTED, TransferState.SETTLED])
 
 const ALLOWED_TRANSITIONS: Record<TransferState, readonly TransferState[]> = {
   [TransferState.DRAFT]: [TransferState.SUBMITTED, TransferState.CANCELLED],
   [TransferState.SUBMITTED]: [TransferState.UNDER_REVIEW, TransferState.CANCELLED],
-  [TransferState.UNDER_REVIEW]: [
-    TransferState.NEEDS_INFO,
-    TransferState.APPROVED,
-    TransferState.REJECTED,
-    TransferState.CANCELLED,
-  ],
+  [TransferState.UNDER_REVIEW]: [TransferState.NEEDS_INFO, TransferState.APPROVED, TransferState.REJECTED, TransferState.CANCELLED],
   [TransferState.NEEDS_INFO]: [TransferState.UNDER_REVIEW, TransferState.CANCELLED],
   [TransferState.APPROVED]: [TransferState.SETTLED, TransferState.CANCELLED],
   [TransferState.REJECTED]: [],
@@ -78,9 +69,7 @@ export function canTransitionTransferState(from: TransferState, to: TransferStat
 export function assertTransferTransition(from: TransferState, to: TransferState): void {
   if (!canTransitionTransferState(from, to)) {
     const allowed = ALLOWED_TRANSITIONS[from].join(', ') || '(none — terminal)'
-    throw new Error(
-      `Invalid transfer state transition: ${from} → ${to}. Allowed from ${from}: ${allowed}`,
-    )
+    throw new Error(`Invalid transfer state transition: ${from} → ${to}. Allowed from ${from}: ${allowed}`)
   }
 }
 
@@ -88,4 +77,4 @@ export function lifecycleStageFor(state: TransferState): TransferLifecycleStage 
   return LIFECYCLE_BY_STATE[state]
 }
 
-export { TERMINAL_STATES, ALLOWED_TRANSITIONS }
+export { ALLOWED_TRANSITIONS, TERMINAL_STATES }

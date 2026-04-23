@@ -135,9 +135,7 @@ export class LedgerService {
     return this.database.tx(async client => {
       const balance = await this.holderBalance(client, input.securityId, input.holderId)
       if (balance < input.quantity) {
-        throw new BadRequestException(
-          `Holder ${input.holderId} has ${balance} units; cannot cancel ${input.quantity}`,
-        )
+        throw new BadRequestException(`Holder ${input.holderId} has ${balance} units; cannot cancel ${input.quantity}`)
       }
       const event = await this.insertCancel(client, input)
       await this.recordAudit(client, event, actor, 'LEDGER_CANCEL')
@@ -156,23 +154,14 @@ export class LedgerService {
       if (input.delta < 0) {
         const balance = await this.holderBalance(client, input.securityId, input.holderId)
         if (balance + input.delta < 0) {
-          throw new BadRequestException(
-            `Adjustment would produce negative balance (current=${balance}, delta=${input.delta})`,
-          )
+          throw new BadRequestException(`Adjustment would produce negative balance (current=${balance}, delta=${input.delta})`)
         }
       }
       const result = await client.query<LedgerEventRow>(
         `INSERT INTO ledger_events (type, case_id, security_id, holder_id, quantity, timestamp, reason, metadata)
          VALUES ('ADJUSTMENT', $1, $2, $3, $4, NOW(), $5, $6::jsonb)
          RETURNING id, type, case_id, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp, reason, metadata`,
-        [
-          input.caseId || null,
-          input.securityId,
-          input.holderId,
-          input.delta,
-          input.reason,
-          JSON.stringify(input.metadata || {}),
-        ],
+        [input.caseId || null, input.securityId, input.holderId, input.delta, input.reason, JSON.stringify(input.metadata || {})],
       )
       const event = mapLedgerEvent(result.rows[0])
       await this.recordAudit(client, event, actor, 'LEDGER_ADJUSTMENT')
@@ -189,14 +178,7 @@ export class LedgerService {
       `INSERT INTO ledger_events (type, case_id, security_id, holder_id, quantity, timestamp, reason, metadata)
        VALUES ('ISSUE', $1, $2, $3, $4, NOW(), $5, $6::jsonb)
        RETURNING id, type, case_id, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp, reason, metadata`,
-      [
-        input.caseId || null,
-        input.securityId,
-        input.holderId,
-        input.quantity,
-        input.reason || null,
-        JSON.stringify(input.metadata || {}),
-      ],
+      [input.caseId || null, input.securityId, input.holderId, input.quantity, input.reason || null, JSON.stringify(input.metadata || {})],
     )
     return mapLedgerEvent(result.rows[0])
   }
@@ -224,14 +206,7 @@ export class LedgerService {
       `INSERT INTO ledger_events (type, case_id, security_id, holder_id, quantity, timestamp, reason, metadata)
        VALUES ('CANCEL', $1, $2, $3, $4, NOW(), $5, $6::jsonb)
        RETURNING id, type, case_id, security_id, from_holder_id, to_holder_id, holder_id, quantity, timestamp, reason, metadata`,
-      [
-        input.caseId || null,
-        input.securityId,
-        input.holderId,
-        input.quantity,
-        input.reason || null,
-        JSON.stringify(input.metadata || {}),
-      ],
+      [input.caseId || null, input.securityId, input.holderId, input.quantity, input.reason || null, JSON.stringify(input.metadata || {})],
     )
     return mapLedgerEvent(result.rows[0])
   }

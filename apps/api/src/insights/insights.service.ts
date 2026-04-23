@@ -2,6 +2,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common'
 
 import { AuditService } from '../audit/audit.service.js'
 import { CasesService } from '../cases/cases.service.js'
+import { DatabaseService } from '../database/database.service.js'
 import { DividendsService } from '../dividends/dividends.service.js'
 import { IssuersService } from '../issuers/issuers.service.js'
 import { LedgerService } from '../ledger/ledger.service.js'
@@ -9,7 +10,6 @@ import { ReportingService } from '../reporting/reporting.service.js'
 import { ShareholdersService } from '../shareholders/shareholders.service.js'
 import { TasksService } from '../tasks/tasks.service.js'
 import { VotingService } from '../voting/voting.service.js'
-import { DatabaseService } from '../database/database.service.js'
 
 import { buildActivitySearchInsight } from './builders/activity-search.js'
 import type { AnomalyInputs } from './builders/anomaly.js'
@@ -21,9 +21,9 @@ import { buildOperationalCopilotInsight } from './builders/operational-copilot.j
 import { buildShareholderInsight } from './builders/shareholder-insight.js'
 import { buildTaskFocusInsight } from './builders/task-focus.js'
 import { buildTransferInsight } from './builders/transfer-insight.js'
+import type { Insight } from './insights.types.js'
 import { InsightsLlmService } from './llm.service.js'
 import { PROMPTS } from './prompts.js'
-import type { Insight } from './insights.types.js'
 
 const STALE_TRANSFER_HOURS = 72
 const ACTIVITY_DEFAULT_LIMIT = 25
@@ -323,31 +323,30 @@ export class InsightsService {
   }
 
   private async collectAnomalyInputs(): Promise<AnomalyInputs> {
-    const [stale, overdueDividends, unpaidDividends, meetingsBelowQuorum, audits24h, kycMismatch, unassignedCritical] =
-      await Promise.all([
-        this.database.query<{ id: string; status: string; lifecycle_stage: string; age_hours: string }>(
-          `SELECT id::text, status, lifecycle_stage,
+    const [stale, overdueDividends, unpaidDividends, meetingsBelowQuorum, audits24h, kycMismatch, unassignedCritical] = await Promise.all([
+      this.database.query<{ id: string; status: string; lifecycle_stage: string; age_hours: string }>(
+        `SELECT id::text, status, lifecycle_stage,
                   EXTRACT(EPOCH FROM (NOW() - updated_at))/3600 AS age_hours
            FROM transfer_cases
            WHERE status IN ('PENDING','IN_REVIEW')
              AND updated_at < NOW() - INTERVAL '${STALE_TRANSFER_HOURS} hours'
            ORDER BY updated_at ASC LIMIT 25`,
-        ),
-        this.database.query<{ id: string; record_date: string }>(
-          `SELECT id, record_date::text FROM dividend_events
+      ),
+      this.database.query<{ id: string; record_date: string }>(
+        `SELECT id, record_date::text FROM dividend_events
            WHERE status = 'DECLARED' AND record_date < CURRENT_DATE`,
-        ),
-        this.database.query<{ id: string; payment_date: string; pending: string }>(
-          `SELECT d.id, d.payment_date::text,
+      ),
+      this.database.query<{ id: string; payment_date: string; pending: string }>(
+        `SELECT d.id, d.payment_date::text,
                   COUNT(e.*) FILTER (WHERE e.status = 'PENDING')::text AS pending
            FROM dividend_events d
            JOIN dividend_entitlements e ON e.dividend_event_id = d.id
            WHERE d.status = 'SNAPSHOTTED' AND d.payment_date < CURRENT_DATE
            GROUP BY d.id, d.payment_date
            HAVING COUNT(e.*) FILTER (WHERE e.status = 'PENDING') > 0`,
-        ),
-        this.database.query<{ meeting_id: string; quorum: string; turnout: string }>(
-          `SELECT m.id AS meeting_id, m.quorum_pct::text AS quorum,
+      ),
+      this.database.query<{ meeting_id: string; quorum: string; turnout: string }>(
+        `SELECT m.id AS meeting_id, m.quorum_pct::text AS quorum,
                   CASE WHEN SUM(b.shares_eligible) > 0
                        THEN (COALESCE(SUM(v.shares_cast),0)::float / SUM(b.shares_eligible) * 100)::text
                        ELSE '0' END AS turnout
@@ -359,26 +358,26 @@ export class InsightsService {
            HAVING CASE WHEN SUM(b.shares_eligible) > 0
                        THEN (COALESCE(SUM(v.shares_cast),0)::float / SUM(b.shares_eligible) * 100)
                        ELSE 0 END < m.quorum_pct`,
-        ),
-        this.database.query<{ count: string }>(
-          `SELECT COUNT(*)::text AS count FROM audit_events
+      ),
+      this.database.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM audit_events
            WHERE severity IN ('HIGH','CRITICAL') AND occurred_at > NOW() - INTERVAL '24 hours'`,
-        ),
-        this.database.query<{ count: string }>(
-          `SELECT COUNT(DISTINCT sh.id)::text AS count
+      ),
+      this.database.query<{ count: string }>(
+        `SELECT COUNT(DISTINCT sh.id)::text AS count
            FROM shareholders sh
            JOIN shareholder_accounts sa ON sa.shareholder_id = sh.id
            JOIN v_holdings h ON h.holder_id = sa.account_number
            WHERE sh.kyc_status <> 'APPROVED' AND h.quantity > 0`,
-        ),
-        this.database.query<{ count: string }>(
-          `SELECT COUNT(*)::text AS count FROM tasks
+      ),
+      this.database.query<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM tasks
            WHERE priority IN ('CRITICAL','HIGH')
              AND status IN ('OPEN','IN_REVIEW','BLOCKED')
              AND assignee_id IS NULL
              AND due_at < NOW()`,
-        ),
-      ])
+      ),
+    ])
 
     return {
       highSeverityAudits24h: Number(audits24h.rows[0]?.count || '0'),
@@ -449,10 +448,7 @@ export class InsightsService {
   // ─── Operational copilot ────────────────────────────────────────────────
 
   async operationalCopilotInsight(): Promise<Insight> {
-    const [summary, anomalies] = await Promise.all([
-      this.reportingService.operationalSummary(),
-      this.collectAnomalyInputs(),
-    ])
+    const [summary, anomalies] = await Promise.all([this.reportingService.operationalSummary(), this.collectAnomalyInputs()])
     const insight = buildOperationalCopilotInsight({
       meetingsBelowQuorum: anomalies.meetingsBelowQuorum.length,
       overdueDividendSnapshots: anomalies.overdueDividendSnapshots.length,
@@ -499,10 +495,7 @@ export class InsightsService {
     }
 
     const whereSql = `WHERE ${where.join(' AND ')}`
-    const countResult = await this.database.query<{ count: string }>(
-      `SELECT COUNT(*)::text AS count FROM audit_events ${whereSql}`,
-      params,
-    )
+    const countResult = await this.database.query<{ count: string }>(`SELECT COUNT(*)::text AS count FROM audit_events ${whereSql}`, params)
     const total = Number(countResult.rows[0]?.count || '0')
     const limitParam = addParam(limit)
     const rows = await this.database.query<{
@@ -530,7 +523,7 @@ export class InsightsService {
         actorId: row.actor_id,
         actorRole: row.actor_role || undefined,
         entityId: row.entity_id,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         entityType: row.entity_type as any,
         id: Number(row.id),
         issuerId: row.issuer_id || undefined,

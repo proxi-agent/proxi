@@ -67,9 +67,7 @@ export class TasksSignalsService {
         relatedEntityType: 'TRANSFER_REQUEST',
         severity: args.severity || 'WARN',
         source: 'SYSTEM',
-        title: args.reference
-          ? `Transfer ${args.reference} blocked`
-          : 'Transfer blocked pending review',
+        title: args.reference ? `Transfer ${args.reference} blocked` : 'Transfer blocked pending review',
         type: 'TRANSFER_REVIEW',
       },
       actor,
@@ -104,9 +102,7 @@ export class TasksSignalsService {
         relatedEntityType: 'TRANSFER_REQUEST',
         severity: 'WARN',
         source: 'SYSTEM',
-        title: args.reference
-          ? `Follow up on rejected transfer ${args.reference}`
-          : 'Follow up on rejected transfer',
+        title: args.reference ? `Follow up on rejected transfer ${args.reference}` : 'Follow up on rejected transfer',
         type: 'TRANSFER_REVIEW',
       },
       actor,
@@ -137,10 +133,10 @@ export class TasksSignalsService {
         assigneeId: args.assigneeId,
         description: [
           `${args.failedCount} of ${args.totalEntitlements} dividend payments failed.`,
-          args.failedAmountCents != null
-            ? `Affected amount ≈ ${formatCents(args.failedAmountCents, args.currency || 'USD')}.`
-            : '',
-        ].filter(Boolean).join(' '),
+          args.failedAmountCents != null ? `Affected amount ≈ ${formatCents(args.failedAmountCents, args.currency || 'USD')}.` : '',
+        ]
+          .filter(Boolean)
+          .join(' '),
         issuerId: args.issuerId,
         metadata: {
           currency: args.currency,
@@ -239,9 +235,7 @@ export class TasksSignalsService {
         issuerId: args.issuerId,
         metadata: { accountId: args.accountId, delta: args.delta, securityId: args.securityId },
         priority: severity === 'CRITICAL' ? 'CRITICAL' : 'HIGH',
-        recommendedActions: [
-          { action: 'ledger.investigate', label: 'Open ledger investigation' },
-        ],
+        recommendedActions: [{ action: 'ledger.investigate', label: 'Open ledger investigation' }],
         relatedEntityId: args.accountId,
         relatedEntityType: 'SHAREHOLDER_ACCOUNT',
         severity,
@@ -259,13 +253,7 @@ export class TasksSignalsService {
    * resolved. Safe to call whether tasks exist or not — returns the
    * number of tasks that were closed so call sites can log it.
    */
-  async clearForEntity(
-    entityType: string,
-    entityId: string,
-    reason: string,
-    actor: ActorContext,
-    client?: Queryable,
-  ): Promise<number> {
+  async clearForEntity(entityType: string, entityId: string, reason: string, actor: ActorContext, client?: Queryable): Promise<number> {
     return this.tasks.closeForEntity(entityType, entityId, actor, { reason }, client)
   }
 }

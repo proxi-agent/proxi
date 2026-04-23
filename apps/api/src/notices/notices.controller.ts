@@ -32,11 +32,7 @@ export class NoticesController {
 
   @Permissions('agent.admin')
   @Patch(':id')
-  async update(
-    @Param('id') id: string,
-    @Body() body: UpdateNoticeDto,
-    @CurrentRequest() request: AuthenticatedRequest,
-  ) {
+  async update(@Param('id') id: string, @Body() body: UpdateNoticeDto, @CurrentRequest() request: AuthenticatedRequest) {
     return this.noticesService.update(id, body, actorFromRequest(request))
   }
 
