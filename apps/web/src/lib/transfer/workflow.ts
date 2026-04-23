@@ -117,7 +117,7 @@ export function classifyWorkflow(t: TransferRequest): { branch: WorkflowBranch; 
   let caseType: WorkflowCaseType = 'standard_individual'
   if (t.transferType === 'internal-family') caseType = 'gift'
   else if (t.transferType === 'restricted-removal') caseType = 'restricted_shares'
-  else if (branch === 'estate_succession' || branch === 'deceased_owner') caseType = 'estate'
+  else if (branch === 'estate_succession') caseType = 'estate'
   else if (branch === 'fiduciary_review') caseType = 'fiduciary'
   else if (t.exceptions.some(e => e.severity === 'high')) caseType = 'special_situation'
 

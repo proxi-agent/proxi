@@ -2,7 +2,7 @@ import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common'
 
 import { Permissions } from '../auth/permissions.decorator.js'
 
-import { ActivitySearchDto, CopilotQueryDto, TaskFocusDto } from './insights.dto.js'
+import { ActivitySearchDto, TaskFocusDto } from './insights.dto.js'
 import { InsightsService } from './insights.service.js'
 import type { Insight } from './insights.types.js'
 
@@ -21,7 +21,7 @@ export class InsightsController {
 
   @Get('copilot')
   @Permissions('report.view')
-  copilot(@Query() _query: CopilotQueryDto): Promise<Insight> {
+  copilot(): Promise<Insight> {
     return this.insightsService.operationalCopilotInsight()
   }
 
