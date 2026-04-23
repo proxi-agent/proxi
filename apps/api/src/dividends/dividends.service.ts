@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import type { PoolClient } from 'pg'
 
 import { AuditService } from '../audit/audit.service.js'
+import { AuditActions } from '../audit/audit.events.js'
 import type { ActorContext } from '../common/actor.js'
 import type { PaginatedResponse } from '../common/pagination.js'
 import { buildPaginated, pageOffset, resolveSort } from '../common/pagination.js'
@@ -160,7 +161,8 @@ export class DividendsService {
       const event = mapDividend(result.rows[0])
       await this.auditService.record(
         {
-          action: 'DIVIDEND_CREATED',
+          action: AuditActions.DIVIDEND_CREATED,
+          sourceContext: { component: 'dividends', system: 'HTTP_API' },
           actorId: actor.actorId,
           actorRole: actor.actorRole,
           entityId: event.id,
@@ -281,7 +283,8 @@ export class DividendsService {
       )
       await this.auditService.record(
         {
-          action: 'DIVIDEND_SNAPSHOTTED',
+          action: AuditActions.DIVIDEND_SNAPSHOTTED,
+          sourceContext: { component: 'dividends', correlationId: `div:${id}`, system: 'HTTP_API' },
           actorId: actor.actorId,
           actorRole: actor.actorRole,
           entityId: id,

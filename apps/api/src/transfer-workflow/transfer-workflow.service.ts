@@ -21,12 +21,14 @@ import {
 } from '@prisma/client'
 
 import { AuditService } from '../audit/audit.service.js'
+import { AuditActions } from '../audit/audit.events.js'
 import type { AuditSeverity } from '../audit/audit.types.js'
 import type { ActorContext } from '../common/actor.js'
 import type { PaginatedResponse } from '../common/pagination.js'
 import { buildPaginated, pageOffset, resolveSort } from '../common/pagination.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { TasksService } from '../tasks/tasks.service.js'
+import { TasksSignalsService } from '../tasks/tasks.signals.service.js'
 
 import type {
   ApproveTransferDto,
@@ -86,6 +88,7 @@ export class TransferWorkflowService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly tasks: TasksService,
+    private readonly signals: TasksSignalsService,
   ) {}
 
   // ------------------------------------------------------------------
@@ -219,7 +222,7 @@ export class TransferWorkflowService {
         tx,
         actor,
         record,
-        input.submit ? 'TRANSFER_SUBMITTED' : 'TRANSFER_DRAFTED',
+        input.submit ? AuditActions.TRANSFER_SUBMITTED : AuditActions.TRANSFER_DRAFTED,
         'INFO',
         { quantity: input.quantity, kind: record.kind },
       )
@@ -234,7 +237,7 @@ export class TransferWorkflowService {
       id,
       actor,
       to: TransferState.SUBMITTED,
-      action: 'TRANSFER_SUBMITTED',
+      action: AuditActions.TRANSFER_SUBMITTED,
       severity: 'INFO',
       patch: () => ({ submittedAt: new Date() }),
     })
@@ -249,7 +252,7 @@ export class TransferWorkflowService {
       id,
       actor,
       to: TransferState.UNDER_REVIEW,
-      action: 'TRANSFER_REVIEW_STARTED',
+      action: AuditActions.TRANSFER_REVIEW_STARTED,
       severity: 'INFO',
       patch: () => ({
         assignedReviewerId: input.assignedReviewerId ?? actor.actorId ?? null,
@@ -270,7 +273,7 @@ export class TransferWorkflowService {
       id,
       actor,
       to: TransferState.NEEDS_INFO,
-      action: 'TRANSFER_INFO_REQUESTED',
+      action: AuditActions.TRANSFER_INFO_REQUESTED,
       severity: 'MEDIUM',
       patch: current => ({
         missingEvidence: mergeEvidence(current.missingEvidence, input.missingEvidence),
@@ -279,6 +282,24 @@ export class TransferWorkflowService {
         action: TransferReviewAction.REQUEST_INFO,
         reason: input.reason,
         notes: input.notes,
+      },
+      afterCommit: async current => {
+        // Surface this to the ops queue so the request-info loop is visible.
+        await this.signals
+          .flagTransferBlocked(
+            {
+              issuerId: current.issuerId,
+              transferId: current.id,
+              reference: current.reference,
+              reasons: current.missingEvidence.length
+                ? current.missingEvidence.map(key => `missing_evidence:${key}`)
+                : ['additional_information_requested'],
+              priority: 'MEDIUM',
+              severity: 'WARN',
+            },
+            actor,
+          )
+          .catch(() => undefined)
       },
     })
   }
@@ -292,7 +313,7 @@ export class TransferWorkflowService {
       id,
       actor,
       to: TransferState.UNDER_REVIEW,
-      action: 'TRANSFER_RESUBMITTED',
+      action: AuditActions.TRANSFER_RESUBMITTED,
       severity: 'INFO',
       patch: current => {
         const submitted = dedupe([...(current.evidenceSubmitted ?? []), ...(input.evidenceSubmitted ?? [])])
@@ -302,6 +323,15 @@ export class TransferWorkflowService {
       review: {
         action: TransferReviewAction.COMMENT,
         notes: input.notes,
+      },
+      afterCommit: async current => {
+        // Root cause cleared — close open blocker tasks. `closeForEntity`
+        // is idempotent so calling it on every resubmit is cheap.
+        if (!current.missingEvidence.length) {
+          await this.signals
+            .clearForEntity('TRANSFER_REQUEST', current.id, 'resubmitted with evidence', actor)
+            .catch(() => undefined)
+        }
       },
     })
   }
@@ -315,12 +345,18 @@ export class TransferWorkflowService {
       id,
       actor,
       to: TransferState.APPROVED,
-      action: 'TRANSFER_APPROVED',
+      action: AuditActions.TRANSFER_APPROVED,
       severity: 'MEDIUM',
       guard: current => this.guardApproval(current),
       review: {
         action: TransferReviewAction.APPROVE,
         notes: input.notes,
+      },
+      afterCommit: async current => {
+        // All outstanding review tasks can close once the case is approved.
+        await this.signals
+          .clearForEntity('TRANSFER_REQUEST', current.id, 'transfer approved', actor)
+          .catch(() => undefined)
       },
     })
   }
@@ -334,7 +370,7 @@ export class TransferWorkflowService {
       id,
       actor,
       to: TransferState.REJECTED,
-      action: 'TRANSFER_REJECTED',
+      action: AuditActions.TRANSFER_REJECTED,
       severity: 'HIGH',
       patch: () => ({ failureReason: input.reason }),
       review: {
@@ -342,19 +378,14 @@ export class TransferWorkflowService {
         reason: input.reason,
         notes: input.notes,
       },
-      afterCommit: async (current) => {
-        await this.tasks
-          .create(
+      afterCommit: async current => {
+        await this.signals
+          .flagTransferRejected(
             {
-              type: 'TRANSFER_REVIEW',
-              source: 'SYSTEM',
-              priority: 'HIGH',
-              severity: 'WARN',
-              title: `Transfer ${current.reference} rejected`,
-              description: input.reason,
               issuerId: current.issuerId,
-              relatedEntityType: 'TRANSFER_REQUEST',
-              relatedEntityId: current.id,
+              transferId: current.id,
+              reference: current.reference,
+              reason: input.reason,
             },
             actor,
           )
@@ -372,12 +403,17 @@ export class TransferWorkflowService {
       id,
       actor,
       to: TransferState.CANCELLED,
-      action: 'TRANSFER_CANCELLED',
+      action: AuditActions.TRANSFER_CANCELLED,
       severity: 'MEDIUM',
       patch: () => ({ failureReason: input.reason }),
       review: {
         action: TransferReviewAction.WITHDRAW,
         reason: input.reason,
+      },
+      afterCommit: async current => {
+        await this.signals
+          .clearForEntity('TRANSFER_REQUEST', current.id, 'transfer cancelled', actor)
+          .catch(() => undefined)
       },
     })
   }
@@ -409,6 +445,35 @@ export class TransferWorkflowService {
 
       const blockers = await this.computeBlockers(current, tx)
       if (blockers.length > 0) {
+        // Record the blocked attempt for audit/AI *before* rolling back.
+        // The audit row itself is written against a separate connection so
+        // it survives the tx rollback; it gives operators a trail of
+        // "why couldn't this settle?" without polluting the ledger.
+        await this.audit.record({
+          action: AuditActions.TRANSFER_SETTLEMENT_BLOCKED,
+          actorId: actor.actorId,
+          actorRole: actor.actorRole,
+          entityId: current.id,
+          entityType: 'TRANSFER_REQUEST',
+          issuerId: current.issuerId,
+          metadata: { blockers, reference: current.reference },
+          severity: 'HIGH',
+          sourceContext: {
+            component: 'transfer-workflow',
+            system: 'HTTP_API',
+          },
+        })
+        await this.signals.flagTransferBlocked(
+          {
+            issuerId: current.issuerId,
+            transferId: current.id,
+            reference: current.reference,
+            reasons: blockers,
+            priority: 'HIGH',
+            severity: 'ERROR',
+          },
+          actor,
+        )
         throw new ConflictException(`Cannot settle transfer: ${blockers.join('; ')}`)
       }
 
@@ -460,7 +525,7 @@ export class TransferWorkflowService {
         },
       })
 
-      await this.recordAudit(tx, actor, updated, 'TRANSFER_SETTLED', 'MEDIUM', {
+      await this.recordAudit(tx, actor, updated, AuditActions.TRANSFER_SETTLED, 'MEDIUM', {
         correlationId,
         quantity: Number(quantity),
         legs: legs.map(l => ({ accountId: l.accountId, sign: l.sign, type: l.entryType })),
@@ -468,6 +533,11 @@ export class TransferWorkflowService {
 
       return updated
     })
+
+    // Settlement succeeded — close any lingering ops tasks tied to this case.
+    await this.signals
+      .clearForEntity('TRANSFER_REQUEST', settled.id, 'transfer settled', actor)
+      .catch(() => undefined)
 
     return mapSummary(settled)
   }
@@ -609,6 +679,12 @@ export class TransferWorkflowService {
       userAgent: actor.userAgent,
       severity,
       metadata: { ...metadata, reference: transfer.reference },
+      sourceContext: {
+        component: 'transfer-workflow',
+        correlationId: `xfer:${transfer.id}`,
+        idempotencyKey: transfer.idempotencyKey ?? undefined,
+        system: 'HTTP_API',
+      },
     })
   }
 

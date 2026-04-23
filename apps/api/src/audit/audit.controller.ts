@@ -1,6 +1,6 @@
-import { Controller, Get, Query } from '@nestjs/common'
+import { Controller, Get, Param, Query } from '@nestjs/common'
 import { Type } from 'class-transformer'
-import { IsDateString, IsIn, IsOptional, IsString } from 'class-validator'
+import { IsDateString, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator'
 
 import { Permissions } from '../auth/permissions.decorator.js'
 import { PaginationQueryDto } from '../common/pagination.js'
@@ -46,6 +46,19 @@ class AuditQueryDto extends PaginationQueryDto {
   _dummy?: number
 }
 
+class TimelineQueryDto {
+  @IsOptional()
+  @IsDateString()
+  since?: string
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(500)
+  limit?: number
+}
+
 @Controller('audit')
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
@@ -54,5 +67,20 @@ export class AuditController {
   @Get('events')
   async list(@Query() query: AuditQueryDto) {
     return this.auditService.list(query)
+  }
+
+  /**
+   * Normalized, AI-friendly timeline for a single entity. Response shape
+   * is designed to be stable across domains — safe to feed into prompts,
+   * exports, or timeline UI components.
+   */
+  @Permissions('report.view')
+  @Get('timeline/:entityType/:entityId')
+  async timeline(
+    @Param('entityType') entityType: AuditEntityType,
+    @Param('entityId') entityId: string,
+    @Query() query: TimelineQueryDto,
+  ) {
+    return this.auditService.timeline(entityType, entityId, query)
   }
 }

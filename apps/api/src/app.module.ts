@@ -25,6 +25,7 @@ import { TasksModule } from './tasks/tasks.module.js'
 import { TransferWorkflowModule } from './transfer-workflow/transfer-workflow.module.js'
 import { TransfersModule } from './transfers/transfers.module.js'
 import { VotingModule } from './voting/voting.module.js'
+import { WorkflowContextModule } from './workflow-context/workflow-context.module.js'
 import { AppController } from './app.controller.js'
 import { AppService } from './app.service.js'
 
@@ -52,6 +53,7 @@ import { AppService } from './app.service.js'
     TransferWorkflowModule,
     TransfersModule,
     VotingModule,
+    WorkflowContextModule,
   ],
   controllers: [AppController],
   providers: [

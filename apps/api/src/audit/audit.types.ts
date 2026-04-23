@@ -19,6 +19,25 @@ export type AuditEntityType =
   | 'USER'
   | 'VOTE'
 
+/**
+ * Structured origin metadata attached to an audit row. This is merged into
+ * the event's `metadata` under a `_source` key so downstream consumers can
+ * reliably distinguish human vs. automated vs. integration actors without
+ * needing to parse the action name.
+ */
+export interface AuditSourceContext {
+  /** High-level source system — `HTTP_API`, `JOB`, `MIGRATION`, `SEED`, etc. */
+  system?: string
+  /** Logical component within the source (e.g. `transfer-workflow`, `dividend-runner`). */
+  component?: string
+  /** Upstream request/correlation id, if any. */
+  correlationId?: string
+  /** Upstream idempotency key, if any. */
+  idempotencyKey?: string
+  /** Free-form note explaining why this action was taken (rarely used). */
+  note?: string
+}
+
 export interface AuditEvent {
   id: number
   occurredAt: Date
@@ -45,4 +64,5 @@ export interface RecordAuditInput {
   ip?: string
   userAgent?: string
   metadata?: Record<string, unknown>
+  sourceContext?: AuditSourceContext
 }

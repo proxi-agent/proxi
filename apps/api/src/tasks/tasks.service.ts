@@ -20,6 +20,18 @@ import type {
 } from './tasks.types.js'
 import { canTransition } from './tasks.types.js'
 
+/** Open statuses — used as the default "active" set for dedup and bulk close. */
+export const OPEN_TASK_STATUSES: readonly TaskStatus[] = ['OPEN', 'IN_REVIEW', 'BLOCKED']
+
+export interface EnsureTaskInput extends CreateTaskDto {
+  /**
+   * Optional explicit dedup key. When present we treat (issuerId, type, dedupKey)
+   * as the uniqueness constraint. When absent we fall back to
+   * (relatedEntityType, relatedEntityId, type).
+   */
+  dedupKey?: string
+}
+
 type TaskRow = {
   id: string
   issuer_id: string | null
@@ -243,6 +255,167 @@ export class TasksService {
       )
       return mapTask(result.rows[0])
     })
+  }
+
+  /**
+   * Idempotent task creation.
+   *
+   * If an *open* task already exists for the same (relatedEntityType,
+   * relatedEntityId, type) — or the same (issuerId, type, dedupKey) — we
+   * update its metadata/priority/description instead of creating a duplicate.
+   * This is the preferred entry point for automated signal emitters so we
+   * don't flood the queue with repeats of the same problem.
+   */
+  async ensure(input: EnsureTaskInput, actor: ActorContext, client?: Queryable): Promise<Task> {
+    const runner = client ?? this.database
+    const existing = await this.findOpenMatch(runner, input)
+
+    if (existing) {
+      // Merge: keep the task open, but refresh human-facing fields if supplied.
+      const mergedMetadata = {
+        ...existing.metadata,
+        ...(input.metadata || {}),
+        ...(input.dedupKey ? { dedupKey: input.dedupKey } : {}),
+        lastSignaledAt: new Date().toISOString(),
+      }
+      const updated = await runner.query<TaskRow>(
+        `UPDATE tasks SET
+           title = $2, description = $3,
+           priority = $4, severity = $5,
+           recommended_actions = $6::jsonb,
+           metadata = $7::jsonb,
+           updated_at = NOW()
+         WHERE id = $1 RETURNING *`,
+        [
+          existing.id,
+          input.title || existing.title,
+          input.description ?? existing.description,
+          input.priority ?? existing.priority,
+          input.severity ?? existing.severity,
+          JSON.stringify(input.recommendedActions ?? existing.recommendedActions ?? []),
+          JSON.stringify(mergedMetadata),
+        ],
+      )
+      await this.auditService.record(
+        {
+          action: 'TASK_UPDATED',
+          actorId: actor.actorId,
+          actorRole: actor.actorRole,
+          entityId: existing.id,
+          entityType: 'TASK',
+          issuerId: existing.issuerId,
+          metadata: { dedup: true, reason: 'signal re-emitted', type: input.type },
+        },
+        client,
+      )
+      return mapTask(updated.rows[0])
+    }
+
+    return this.create(
+      {
+        ...input,
+        metadata: {
+          ...(input.metadata || {}),
+          ...(input.dedupKey ? { dedupKey: input.dedupKey } : {}),
+        },
+      },
+      actor,
+      client,
+    )
+  }
+
+  /**
+   * Bulk-resolve all open tasks attached to an entity. Useful when the root
+   * cause of a flagged exception is cleared — e.g. a blocked transfer
+   * resubmits successfully, so all related `TRANSFER_REVIEW` tasks should
+   * close without manual intervention.
+   */
+  async closeForEntity(
+    entityType: string,
+    entityId: string,
+    actor: ActorContext,
+    options: { reason?: string; type?: TaskType } = {},
+    client?: Queryable,
+  ): Promise<number> {
+    const runner = client ?? this.database
+    const params: unknown[] = [entityType, entityId, OPEN_TASK_STATUSES]
+    let typeClause = ''
+    if (options.type) {
+      params.push(options.type)
+      typeClause = `AND type = $${params.length}`
+    }
+    const rows = await runner.query<TaskRow>(
+      `SELECT * FROM tasks
+       WHERE related_entity_type = $1 AND related_entity_id = $2 AND status = ANY($3::text[]) ${typeClause}
+       FOR UPDATE`,
+      params,
+    )
+    if (!rows.rows.length) return 0
+
+    const ids = rows.rows.map(row => row.id)
+    await runner.query(
+      `UPDATE tasks SET
+         status = 'RESOLVED', resolved_at = NOW(), resolved_by = $2,
+         metadata = metadata || $3::jsonb,
+         updated_at = NOW()
+       WHERE id = ANY($1::text[])`,
+      [ids, actor.actorId, JSON.stringify({ autoClosedReason: options.reason || 'entity resolved' })],
+    )
+
+    for (const row of rows.rows) {
+      await this.auditService.record(
+        {
+          action: 'TASK_RESOLVED',
+          actorId: actor.actorId,
+          actorRole: actor.actorRole,
+          entityId: row.id,
+          entityType: 'TASK',
+          issuerId: row.issuer_id || undefined,
+          metadata: { auto: true, reason: options.reason, relatedEntityId: entityId, relatedEntityType: entityType },
+          severity: 'INFO',
+        },
+        client,
+      )
+    }
+    return ids.length
+  }
+
+  /**
+   * All tasks attached to a given entity — used by workflow-context bundles
+   * to surface operator-facing exceptions alongside a workflow record.
+   */
+  async listForEntity(entityType: string, entityId: string): Promise<Task[]> {
+    const rows = await this.database.query<TaskRow>(
+      `SELECT * FROM tasks
+       WHERE related_entity_type = $1 AND related_entity_id = $2
+       ORDER BY created_at ASC`,
+      [entityType, entityId],
+    )
+    return rows.rows.map(mapTask)
+  }
+
+  private async findOpenMatch(runner: Queryable, input: EnsureTaskInput): Promise<Task | null> {
+    if (input.dedupKey && input.issuerId) {
+      const match = await runner.query<TaskRow>(
+        `SELECT * FROM tasks
+         WHERE issuer_id = $1 AND type = $2 AND status = ANY($3::text[])
+           AND metadata->>'dedupKey' = $4
+         LIMIT 1`,
+        [input.issuerId, input.type, OPEN_TASK_STATUSES, input.dedupKey],
+      )
+      if (match.rows.length) return mapTask(match.rows[0])
+    }
+    if (input.relatedEntityType && input.relatedEntityId) {
+      const match = await runner.query<TaskRow>(
+        `SELECT * FROM tasks
+         WHERE related_entity_type = $1 AND related_entity_id = $2
+           AND type = $3 AND status = ANY($4::text[])
+         LIMIT 1`,
+        [input.relatedEntityType, input.relatedEntityId, input.type, OPEN_TASK_STATUSES],
+      )
+      if (match.rows.length) return mapTask(match.rows[0])
+    }
+    return null
   }
 
   async stats(issuerId?: string): Promise<{
