@@ -721,14 +721,43 @@ export class CasesService implements OnModuleInit {
     const found = await this.getCaseById(caseId)
     try {
       let eventId: number | undefined
+      const actorContext = { actorId: actor, actorRole: undefined }
       if (found.type === 'TRANSFER' && found.fromHolderId && found.toHolderId) {
-        const event = await this.ledgerService.transfer(found.securityId, found.fromHolderId, found.toHolderId, found.quantity, found.id)
+        const event = await this.ledgerService.transfer(
+          {
+            caseId: found.id,
+            fromHolderId: found.fromHolderId,
+            quantity: found.quantity,
+            reason: `case-${found.id}`,
+            securityId: found.securityId,
+            toHolderId: found.toHolderId,
+          },
+          actorContext,
+        )
         eventId = event.id
       } else if (found.type === 'ISSUE' && found.holderId) {
-        const event = await this.ledgerService.issue(found.securityId, found.holderId, found.quantity, found.id)
+        const event = await this.ledgerService.issue(
+          {
+            caseId: found.id,
+            holderId: found.holderId,
+            quantity: found.quantity,
+            reason: `case-${found.id}`,
+            securityId: found.securityId,
+          },
+          actorContext,
+        )
         eventId = event.id
       } else if (found.type === 'CANCEL' && found.holderId) {
-        const event = await this.ledgerService.cancel(found.securityId, found.holderId, found.quantity, found.id)
+        const event = await this.ledgerService.cancel(
+          {
+            caseId: found.id,
+            holderId: found.holderId,
+            quantity: found.quantity,
+            reason: `case-${found.id}`,
+            securityId: found.securityId,
+          },
+          actorContext,
+        )
         eventId = event.id
       }
 

@@ -1,5 +1,6 @@
 import 'dotenv/config'
 
+import { ValidationPipe } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
 
 import { AppModule } from './app.module.js'
@@ -36,6 +37,14 @@ function isAllowedOrigin(origin: string, allowedOrigins: string[], allowVercelPr
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
+  app.useGlobalPipes(
+    new ValidationPipe({
+      forbidNonWhitelisted: false,
+      transform: true,
+      transformOptions: { enableImplicitConversion: true },
+      whitelist: true,
+    }),
+  )
   const defaultOrigins = ['http://localhost:3000', 'http://localhost:3001']
   const allowedOrigins = parseCsv(process.env.CORS_ORIGIN)
   const allowVercelPreviews = process.env.CORS_ALLOW_VERCEL_PREVIEWS === 'true'
