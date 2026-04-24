@@ -2,6 +2,7 @@ import Link from 'next/link'
 
 import { AppShell } from '@/components/app-shell'
 import { ProxiAssistant } from '@/components/assistant'
+import { Callout } from '@/components/callout'
 import { Icon } from '@/components/icon'
 import {
   DocumentChecklistPanel,
@@ -137,11 +138,10 @@ export default async function InvestorTransferDetail({ params }: { params: Promi
         <Panel subtitle='Where your transfer is in the process' title='Current stage'>
           <TransferStageTracker stage={transfer.stage} />
           {transfer.nextStepForShareholder && (
-            <div className='mt-4 flex items-start gap-2 rounded-sm border border-brand-100 bg-brand-50 p-3 text-[12.5px] text-brand-900'>
-              <Icon className='mt-0.5 text-brand-700' name='sparkles' size={14} />
-              <div>
-                <span className='font-semibold'>Next step for you:</span> {transfer.nextStepForShareholder}
-              </div>
+            <div className='mt-4'>
+              <Callout icon='sparkles' title='Next step for you' tone='brand'>
+                {transfer.nextStepForShareholder}
+              </Callout>
             </div>
           )}
         </Panel>

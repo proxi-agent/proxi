@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/app-shell'
+import { Callout } from '@/components/callout'
 import { Icon } from '@/components/icon'
 import { ConfidenceInterval, StepProgress } from '@/components/primitives'
 import { Badge, Confidence, Metric, PageHeader, Panel, StatusPill } from '@/components/ui'
@@ -429,9 +430,10 @@ export default function IssuerDividendsPage() {
                     </tbody>
                   </table>
                 </div>
-                <div className='mt-3 rounded-md border border-warning-100 bg-warning-100/50 px-3 py-2 text-[12.5px] text-warning-700'>
-                  <Icon className='mr-1 inline' name='alert-triangle' size={12} />
-                  Fractional handling extracted at 74% · confirm cash-in-lieu vs. round-down before disbursement.
+                <div className='mt-3'>
+                  <Callout icon='alert-triangle' tone='warning'>
+                    Fractional handling extracted at 74% · confirm cash-in-lieu vs. round-down before disbursement.
+                  </Callout>
                 </div>
               </div>
               <div className='soft-box'>
@@ -502,9 +504,10 @@ export default function IssuerDividendsPage() {
                 </li>
               ))}
             </ul>
-            <div className='mt-3 rounded-md border border-brand-100 bg-brand-50 px-3 py-2 text-[12.5px] text-brand-900'>
-              <Icon className='mr-1 inline text-brand-700' name='sparkles' size={12} />
-              No sustainability flags. Dividend is covered 2.8× by TTM net income.
+            <div className='mt-3'>
+              <Callout icon='sparkles' tone='brand'>
+                No sustainability flags. Dividend is covered 2.8× by TTM net income.
+              </Callout>
             </div>
           </Panel>
 

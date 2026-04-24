@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 
+import { Callout } from '@/components/callout'
 import { Icon } from '@/components/icon'
 import { Badge, Panel } from '@/components/ui'
 import type { TransferRequest } from '@/lib/transfer/types'
@@ -169,10 +170,7 @@ export function ReviewerDecisionPanel({
         )}
 
         {approveDisabled && (
-          <div className='flex items-start gap-2 rounded-sm border border-danger-100 bg-danger-50 px-3 py-2 text-[12px] text-danger-700'>
-            <Icon className='mt-0.5' name='alert-triangle' size={12} />
-            <span>Cannot post while blocking exceptions remain open. Resolve or escalate first.</span>
-          </div>
+          <Callout tone='danger'>Cannot post while blocking exceptions remain open. Resolve or escalate first.</Callout>
         )}
 
         <div className='flex gap-2'>

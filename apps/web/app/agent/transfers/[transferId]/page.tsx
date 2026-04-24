@@ -1,5 +1,7 @@
+import { ActionMenu } from '@/components/action-menu'
 import { AppShell } from '@/components/app-shell'
 import { ProxiAssistant } from '@/components/assistant'
+import { Callout } from '@/components/callout'
 import { Icon } from '@/components/icon'
 import {
   DocumentChecklistPanel,
@@ -38,18 +40,20 @@ export default async function AgentTransferReview({ params }: { params: Promise<
               <Icon name='message-square' size={13} />
               Message holder
             </button>
-            <button className='btn btn-secondary btn-sm' type='button'>
-              <Icon name='flag' size={13} />
-              Escalate
-            </button>
-            <button className='btn btn-danger btn-sm' type='button'>
-              <Icon name='x' size={13} />
-              Reject
-            </button>
             <button className='btn btn-brand btn-sm' type='button'>
               <Icon name='check' size={13} />
-              Approve & post to ledger
+              Approve &amp; post
             </button>
+            <ActionMenu
+              buttonLabel='More case actions'
+              items={[
+                { icon: 'flag', kind: 'item', label: 'Escalate to compliance' },
+                { icon: 'message-square', kind: 'item', label: 'Request more info' },
+                { icon: 'pause', kind: 'item', label: 'Put on hold' },
+                { kind: 'divider' },
+                { danger: true, icon: 'x', kind: 'item', label: 'Reject transfer' },
+              ]}
+            />
           </>
         }
         eyebrow={
@@ -77,17 +81,17 @@ export default async function AgentTransferReview({ params }: { params: Promise<
         {transfer.exceptions.length > 0 && <ExceptionBanner exceptions={transfer.exceptions} />}
 
         {transfer.aiRecommendation && (
-          <div className='rounded-md border border-brand-100 bg-brand-50 p-3 text-[12.5px] text-brand-900'>
-            <div className='flex items-start gap-2'>
-              <Icon className='mt-0.5 text-brand-700' name='sparkles' size={14} />
-              <div className='flex-1'>
-                <span className='font-semibold'>Proxi recommendation:</span> {transfer.aiRecommendation}
-              </div>
+          <Callout
+            actions={
               <button className='btn btn-brand btn-sm' type='button'>
                 Apply suggestion
               </button>
-            </div>
-          </div>
+            }
+            title='Proxi recommendation'
+            tone='brand'
+          >
+            {transfer.aiRecommendation}
+          </Callout>
         )}
 
         <Panel subtitle='Case stage · driving the SLA clock' title='Lifecycle'>

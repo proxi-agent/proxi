@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useMemo, useState } from 'react'
 
 import { ProxiAssistant } from '@/components/assistant'
+import { Callout } from '@/components/callout'
 import { Icon } from '@/components/icon'
 import { StepProgress } from '@/components/primitives'
 import { Badge, Panel } from '@/components/ui'
@@ -431,22 +432,18 @@ export function GuidedIntake() {
                       <input className='input mt-1 mono' disabled value='0226 · National Financial' />
                     </label>
                   </div>
-                  <div className='rounded-md border border-brand-100 bg-brand-50 px-3 py-2.5 text-[12.5px] text-brand-900'>
-                    <Icon className='mr-1 inline text-brand-700' name='sparkles' size={12} />
+                  <Callout icon='sparkles' tone='brand'>
                     Proxi will send a DTC DWAC instruction. You’ll see the draft before anything moves.
-                  </div>
+                  </Callout>
                 </div>
               )}
 
               {step === 'documents' && (
                 <div className='flex flex-col gap-3'>
-                  <div className='flex items-start gap-2 rounded-md border border-brand-100 bg-brand-50 px-3 py-2.5 text-[12.5px] text-brand-900'>
-                    <Icon className='mt-0.5 text-brand-700' name='sparkles' size={13} />
-                    <div>
-                      <span className='font-semibold'>What you need:</span> a signed stock power, a signature guarantee (or approved
-                      alternative), and a current W-9. Proxi generates what it can and asks you for the rest.
-                    </div>
-                  </div>
+                  <Callout icon='sparkles' title='What you need' tone='brand'>
+                    A signed stock power, a signature guarantee (or approved alternative), and a current W-9. Proxi generates what it
+                    can and asks you for the rest.
+                  </Callout>
 
                   <div className='flex flex-col gap-2'>
                     <div className='text-[12px] font-medium text-ink-700'>Signature guarantee path</div>
@@ -581,10 +578,9 @@ export function GuidedIntake() {
                     )}
                   </button>
                   {idVerified && (
-                    <div className='rounded-md border border-positive-100 bg-positive-100/60 px-3 py-2.5 text-[12.5px] text-positive-700'>
-                      <Icon className='mr-1 inline' name='check-circle' size={12} />
+                    <Callout icon='check-circle' tone='positive'>
                       Identity verified · face match 97% · liveness passed
-                    </div>
+                    </Callout>
                   )}
                 </div>
               )}

@@ -228,6 +228,32 @@ export function EmptyState({
   )
 }
 
+export function ErrorState({
+  action,
+  children,
+  icon = 'alert-triangle',
+  title,
+}: {
+  action?: ReactNode
+  children?: ReactNode
+  icon?: string
+  title: string
+}) {
+  return (
+    <div className='empty' role='alert'>
+      <div
+        aria-hidden
+        className='mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full border border-danger-100 bg-danger-50 text-danger-700 shadow-xs'
+      >
+        <Icon name={icon} size={18} />
+      </div>
+      <div className='empty-title'>{title}</div>
+      {children && <div className='mx-auto mt-1 max-w-md text-[13px] leading-relaxed text-ink-500'>{children}</div>}
+      {action && <div className='mt-4 flex justify-center'>{action}</div>}
+    </div>
+  )
+}
+
 export function Kbd({ children }: { children: ReactNode }) {
   return <span className='kbd'>{children}</span>
 }

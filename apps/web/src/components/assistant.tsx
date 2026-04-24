@@ -54,11 +54,19 @@ export function ProxiAssistant({
         ))}
       </div>
 
-      <div className='assistant-input'>
-        <Icon className='text-brand-700' name='sparkles' size={15} />
-        <input placeholder='Ask Proxi anything · e.g. “Transfer 250 shares to my brokerage”' />
-        <button aria-label='Send' className='btn btn-brand btn-sm btn-icon' type='button'>
-          <Icon name='send' size={13} />
+      <div className='assistant-input' role='search'>
+        <Icon aria-hidden className='text-brand-700' name='sparkles' size={15} />
+        <label className='sr-only' htmlFor='proxi-assistant-input'>
+          Message Proxi Assistant
+        </label>
+        <input
+          autoComplete='off'
+          id='proxi-assistant-input'
+          placeholder='Ask Proxi anything · e.g. “Transfer 250 shares to my brokerage”'
+          type='text'
+        />
+        <button aria-label='Send message to Proxi' className='btn btn-brand btn-sm btn-icon' type='button'>
+          <Icon aria-hidden name='send' size={13} />
         </button>
       </div>
 
