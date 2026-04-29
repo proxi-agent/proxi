@@ -1,5 +1,12 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
-import type { TransferRequest, TransferReview as TransferReviewRow } from '@prisma/client'
+
+import { AuditActions } from '../audit/audit.events.js'
+import { AuditService } from '../audit/audit.service.js'
+import type { AuditSeverity } from '../audit/audit.types.js'
+import type { ActorContext } from '../common/actor.js'
+import type { PaginatedResponse } from '../common/pagination.js'
+import { buildPaginated, pageOffset, resolveSort } from '../common/pagination.js'
+import type { TransferRequest, TransferReview as TransferReviewRow } from '../generated/prisma/client.js'
 import {
   LedgerEntryType,
   LedgerSourceType,
@@ -9,14 +16,7 @@ import {
   TransferPriority,
   TransferReviewAction,
   TransferState,
-} from '@prisma/client'
-
-import { AuditActions } from '../audit/audit.events.js'
-import { AuditService } from '../audit/audit.service.js'
-import type { AuditSeverity } from '../audit/audit.types.js'
-import type { ActorContext } from '../common/actor.js'
-import type { PaginatedResponse } from '../common/pagination.js'
-import { buildPaginated, pageOffset, resolveSort } from '../common/pagination.js'
+} from '../generated/prisma/client.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { TasksSignalsService } from '../tasks/tasks.signals.service.js'
 

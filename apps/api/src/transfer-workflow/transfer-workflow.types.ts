@@ -6,7 +6,7 @@ import type {
   TransferPriority,
   TransferReviewAction,
   TransferState,
-} from '@prisma/client'
+} from '../generated/prisma/client.js'
 
 import type { Branch, CasePhase, CaseType, WorkflowCaseEnvelope } from './case/case-types.js'
 

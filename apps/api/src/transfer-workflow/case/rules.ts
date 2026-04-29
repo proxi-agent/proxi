@@ -1,4 +1,4 @@
-import type { TransferRequest } from '@prisma/client'
+import type { TransferRequest } from '../../generated/prisma/client.js'
 
 import type { CaseFlags, CaseType, DocRequirement, ExtractedFields, RuleCode, RuleResult } from './case-types.js'
 import { allRequirementsSatisfied } from './requirements.js'

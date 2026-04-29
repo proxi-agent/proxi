@@ -1,4 +1,4 @@
-import { TransferLifecycleStage, TransferState } from '@prisma/client'
+import { TransferLifecycleStage, TransferState } from '../generated/prisma/client.js'
 
 /**
  * Stock-transfer state machine.

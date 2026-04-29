@@ -1,4 +1,4 @@
-import type { Prisma, TransferRequest, TransferState } from '@prisma/client'
+import type { Prisma, TransferRequest, TransferState } from '../../generated/prisma/client.js'
 
 import type { Branch, CasePhase, CaseType, DocRequirement, RuleResult, SettlementStep, WorkflowCaseEnvelope } from './case-types.js'
 import { BRANCH_PRIORITY, CURRENT_CASE_VERSION } from './case-types.js'

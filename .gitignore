@@ -38,6 +38,9 @@ out
 apps/api/dist
 packages/*/dist
 
+# Prisma generated client (regenerated via `pnpm exec prisma generate`)
+apps/api/src/generated
+
 # test artifacts
 playwright-report
 test-results

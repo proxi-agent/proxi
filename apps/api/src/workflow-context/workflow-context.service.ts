@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common'
-import type { TransferRequest } from '@prisma/client'
 
 import { AuditService } from '../audit/audit.service.js'
+import type { TransferRequest } from '../generated/prisma/client.js'
 import { PrismaService } from '../prisma/prisma.service.js'
 import { TasksService } from '../tasks/tasks.service.js'
 

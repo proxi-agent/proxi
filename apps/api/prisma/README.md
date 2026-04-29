@@ -15,6 +15,21 @@ pnpm --filter api prisma:migrate:dev --name init
 `DATABASE_URL` must be set in the environment (same connection string used by
 the existing `pg`-based services in `src/database/`).
 
+## Prisma 7 layout
+
+This project is on **Prisma ORM 7** with the new Rust-free `prisma-client`
+generator and the `@prisma/adapter-pg` driver adapter:
+
+- Schema generator points at `../src/generated/prisma` (gitignored, regenerated
+  via `pnpm --filter api prisma:generate`).
+- Database URLs and migration paths are configured in `apps/api/prisma.config.ts`.
+  Set `SHADOW_DATABASE_URL` if you run `prisma migrate dev` against a managed
+  database that needs a separate shadow DB.
+- `PrismaService` constructs `new PrismaClient({ adapter: new PrismaPg({ connectionString }) })`.
+  To preserve Prisma 6 behavior of accepting self-signed certs, set
+  `DATABASE_SSL_REJECT_UNAUTHORIZED=false`.
+- Imports come from `'../generated/prisma/client.js'`, not `@prisma/client`.
+
 ## System-of-record vs. derived
 
 **System-of-record (authoritative):**

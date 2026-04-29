@@ -18,7 +18,7 @@ const SYSTEM_ACTOR: ActorContext = {
   actorRole: 'super_admin',
 }
 
-interface SeedSummary {
+export interface SeedSummary {
   issuers: number
   users: number
   securities: number
