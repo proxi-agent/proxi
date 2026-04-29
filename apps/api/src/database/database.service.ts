@@ -430,6 +430,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     `)
 
     // Dividend events + entitlements.
+    //
+    // The dividend module has a richer surface than the original MVP: full
+    // declaration metadata, an explicit eligibility snapshot, batched
+    // payments, tax withholding, statements, and DRIP instructions. The
+    // tables below evolve the original `dividend_events` / `dividend_entitlements`
+    // schema with `ALTER TABLE … ADD COLUMN IF NOT EXISTS` so existing rows
+    // (and the seed/demo flow) continue to work after the upgrade.
     await this.pool.query(`
       CREATE TABLE IF NOT EXISTS dividend_events (
         id TEXT PRIMARY KEY,
@@ -449,8 +456,50 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS ex_dividend_date DATE;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS rate_type TEXT NOT NULL DEFAULT 'PER_SHARE';
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS rate_amount NUMERIC(28,8) NOT NULL DEFAULT 0;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS notes TEXT;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS withholding_default_pct NUMERIC(7,4) NOT NULL DEFAULT 0;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS supporting_documents JSONB NOT NULL DEFAULT '[]'::jsonb;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS eligibility_locked_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS calculated_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS scheduled_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS paid_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS cancelled_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS rejected_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS changes_requested_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS calculation_version INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS calculations_locked_at TIMESTAMPTZ;
+      ALTER TABLE dividend_events ADD COLUMN IF NOT EXISTS archived_at TIMESTAMPTZ;
       CREATE INDEX IF NOT EXISTS idx_dividend_events_issuer ON dividend_events (issuer_id, payment_date DESC);
       CREATE INDEX IF NOT EXISTS idx_dividend_events_status ON dividend_events (status);
+      CREATE INDEX IF NOT EXISTS idx_dividend_events_security ON dividend_events (security_id, payment_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_dividend_events_record_date ON dividend_events (record_date);
+      CREATE INDEX IF NOT EXISTS idx_dividend_events_payment_date ON dividend_events (payment_date);
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_eligibility_snapshots (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        issuer_id TEXT NOT NULL REFERENCES issuers(id) ON DELETE CASCADE,
+        security_id TEXT NOT NULL REFERENCES securities(id) ON DELETE CASCADE,
+        share_class_id TEXT REFERENCES share_classes(id) ON DELETE SET NULL,
+        record_date DATE NOT NULL,
+        captured_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        locked_at TIMESTAMPTZ,
+        holder_count INTEGER NOT NULL DEFAULT 0,
+        total_eligible_shares NUMERIC(38,8) NOT NULL DEFAULT 0,
+        snapshot_payload JSONB NOT NULL DEFAULT '[]'::jsonb,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        UNIQUE (dividend_event_id)
+      );
+      ALTER TABLE dividend_eligibility_snapshots ADD COLUMN IF NOT EXISTS excluded_holder_count INTEGER NOT NULL DEFAULT 0;
+      CREATE INDEX IF NOT EXISTS idx_div_snapshots_issuer ON dividend_eligibility_snapshots (issuer_id, record_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_snapshots_security ON dividend_eligibility_snapshots (security_id, record_date DESC);
     `)
 
     await this.pool.query(`
@@ -469,9 +518,295 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         UNIQUE (dividend_event_id, account_id)
       );
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS eligibility_snapshot_id TEXT REFERENCES dividend_eligibility_snapshots(id) ON DELETE SET NULL;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS shares_held_decimal NUMERIC(38,8) NOT NULL DEFAULT 0;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS gross_amount_cents BIGINT NOT NULL DEFAULT 0;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS withholding_cents BIGINT NOT NULL DEFAULT 0;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS net_amount_cents BIGINT NOT NULL DEFAULT 0;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS withholding_pct NUMERIC(7,4) NOT NULL DEFAULT 0;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS payment_method TEXT;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS frozen_at TIMESTAMPTZ;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'USD';
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS tax_status TEXT NOT NULL DEFAULT 'RESIDENT';
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS tax_residency TEXT;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS tax_form_status TEXT;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS treaty_rate NUMERIC(7,4);
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS withholding_reason TEXT;
+      ALTER TABLE dividend_entitlements ADD COLUMN IF NOT EXISTS calculation_version INTEGER NOT NULL DEFAULT 1;
       CREATE INDEX IF NOT EXISTS idx_entitlements_event ON dividend_entitlements (dividend_event_id);
       CREATE INDEX IF NOT EXISTS idx_entitlements_account ON dividend_entitlements (account_id);
+      CREATE INDEX IF NOT EXISTS idx_entitlements_shareholder ON dividend_entitlements (shareholder_id);
       CREATE INDEX IF NOT EXISTS idx_entitlements_status ON dividend_entitlements (status);
+      CREATE INDEX IF NOT EXISTS idx_entitlements_event_status ON dividend_entitlements (dividend_event_id, status);
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_approvals (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        action TEXT NOT NULL,
+        actor_id TEXT NOT NULL,
+        actor_role TEXT,
+        decision_notes TEXT,
+        decided_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_div_approvals_event ON dividend_approvals (dividend_event_id, decided_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_approvals_actor ON dividend_approvals (actor_id);
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_payment_batches (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        issuer_id TEXT NOT NULL REFERENCES issuers(id) ON DELETE CASCADE,
+        method TEXT NOT NULL DEFAULT 'ACH',
+        status TEXT NOT NULL DEFAULT 'DRAFT',
+        scheduled_at TIMESTAMPTZ,
+        started_at TIMESTAMPTZ,
+        completed_at TIMESTAMPTZ,
+        cancelled_at TIMESTAMPTZ,
+        payment_count INTEGER NOT NULL DEFAULT 0,
+        total_gross_cents BIGINT NOT NULL DEFAULT 0,
+        total_withholding_cents BIGINT NOT NULL DEFAULT 0,
+        total_net_cents BIGINT NOT NULL DEFAULT 0,
+        notes TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      ALTER TABLE dividend_payment_batches ADD COLUMN IF NOT EXISTS batch_number TEXT;
+      ALTER TABLE dividend_payment_batches ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'USD';
+      ALTER TABLE dividend_payment_batches ADD COLUMN IF NOT EXISTS payment_date DATE;
+      ALTER TABLE dividend_payment_batches ADD COLUMN IF NOT EXISTS created_by TEXT;
+      ALTER TABLE dividend_payment_batches ADD COLUMN IF NOT EXISTS approved_at TIMESTAMPTZ;
+      ALTER TABLE dividend_payment_batches ADD COLUMN IF NOT EXISTS reconciled_at TIMESTAMPTZ;
+      CREATE INDEX IF NOT EXISTS idx_div_batches_event ON dividend_payment_batches (dividend_event_id);
+      CREATE INDEX IF NOT EXISTS idx_div_batches_issuer ON dividend_payment_batches (issuer_id, scheduled_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_batches_status ON dividend_payment_batches (status);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_div_batches_event_number
+        ON dividend_payment_batches (dividend_event_id, batch_number)
+        WHERE batch_number IS NOT NULL;
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_payments (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        batch_id TEXT REFERENCES dividend_payment_batches(id) ON DELETE SET NULL,
+        entitlement_id TEXT NOT NULL REFERENCES dividend_entitlements(id) ON DELETE CASCADE,
+        account_id TEXT NOT NULL REFERENCES shareholder_accounts(id) ON DELETE RESTRICT,
+        shareholder_id TEXT NOT NULL REFERENCES shareholders(id) ON DELETE RESTRICT,
+        gross_amount_cents BIGINT NOT NULL,
+        withholding_cents BIGINT NOT NULL DEFAULT 0,
+        net_amount_cents BIGINT NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'USD',
+        method TEXT NOT NULL DEFAULT 'ACH',
+        status TEXT NOT NULL DEFAULT 'PENDING',
+        external_ref TEXT,
+        failure_reason TEXT,
+        attempt_no INTEGER NOT NULL DEFAULT 1,
+        paid_at TIMESTAMPTZ,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      ALTER TABLE dividend_payments ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+      ALTER TABLE dividend_payments ADD COLUMN IF NOT EXISTS reconciled_at TIMESTAMPTZ;
+      ALTER TABLE dividend_payments ADD COLUMN IF NOT EXISTS returned_at TIMESTAMPTZ;
+      CREATE INDEX IF NOT EXISTS idx_div_payments_event ON dividend_payments (dividend_event_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_payments_batch ON dividend_payments (batch_id);
+      CREATE INDEX IF NOT EXISTS idx_div_payments_entitlement ON dividend_payments (entitlement_id);
+      CREATE INDEX IF NOT EXISTS idx_div_payments_account ON dividend_payments (account_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_payments_shareholder ON dividend_payments (shareholder_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_payments_status ON dividend_payments (status);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_div_payments_idempotency
+        ON dividend_payments (idempotency_key)
+        WHERE idempotency_key IS NOT NULL;
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_tax_withholdings (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        entitlement_id TEXT NOT NULL REFERENCES dividend_entitlements(id) ON DELETE CASCADE,
+        payment_id TEXT REFERENCES dividend_payments(id) ON DELETE SET NULL,
+        shareholder_id TEXT NOT NULL REFERENCES shareholders(id) ON DELETE RESTRICT,
+        jurisdiction TEXT NOT NULL DEFAULT 'US',
+        withholding_pct NUMERIC(7,4) NOT NULL,
+        taxable_amount_cents BIGINT NOT NULL,
+        withholding_cents BIGINT NOT NULL,
+        reason TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_div_withholding_event ON dividend_tax_withholdings (dividend_event_id);
+      CREATE INDEX IF NOT EXISTS idx_div_withholding_entitlement ON dividend_tax_withholdings (entitlement_id);
+      CREATE INDEX IF NOT EXISTS idx_div_withholding_shareholder ON dividend_tax_withholdings (shareholder_id);
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_statements (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        entitlement_id TEXT NOT NULL REFERENCES dividend_entitlements(id) ON DELETE CASCADE,
+        shareholder_id TEXT NOT NULL REFERENCES shareholders(id) ON DELETE RESTRICT,
+        account_id TEXT NOT NULL REFERENCES shareholder_accounts(id) ON DELETE RESTRICT,
+        gross_amount_cents BIGINT NOT NULL,
+        withholding_cents BIGINT NOT NULL DEFAULT 0,
+        net_amount_cents BIGINT NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'USD',
+        statement_date DATE NOT NULL,
+        status TEXT NOT NULL DEFAULT 'DRAFT',
+        document_storage_key TEXT,
+        sent_at TIMESTAMPTZ,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (dividend_event_id, entitlement_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_div_statements_event ON dividend_statements (dividend_event_id);
+      CREATE INDEX IF NOT EXISTS idx_div_statements_shareholder ON dividend_statements (shareholder_id, statement_date DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_statements_status ON dividend_statements (status);
+    `)
+
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_reinvestment_instructions (
+        id TEXT PRIMARY KEY,
+        issuer_id TEXT NOT NULL REFERENCES issuers(id) ON DELETE CASCADE,
+        shareholder_id TEXT NOT NULL REFERENCES shareholders(id) ON DELETE CASCADE,
+        account_id TEXT NOT NULL REFERENCES shareholder_accounts(id) ON DELETE CASCADE,
+        security_id TEXT NOT NULL REFERENCES securities(id) ON DELETE CASCADE,
+        share_class_id TEXT REFERENCES share_classes(id) ON DELETE SET NULL,
+        enabled BOOLEAN NOT NULL DEFAULT TRUE,
+        percentage NUMERIC(5,2) NOT NULL DEFAULT 100,
+        effective_from DATE NOT NULL,
+        effective_to DATE,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (account_id, security_id, share_class_id, effective_from)
+      );
+      CREATE INDEX IF NOT EXISTS idx_drip_issuer ON dividend_reinvestment_instructions (issuer_id);
+      CREATE INDEX IF NOT EXISTS idx_drip_shareholder ON dividend_reinvestment_instructions (shareholder_id);
+      CREATE INDEX IF NOT EXISTS idx_drip_security ON dividend_reinvestment_instructions (security_id);
+    `)
+
+    // Board-driven shareholder notices and market announcements.
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_communications (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        issuer_id TEXT NOT NULL REFERENCES issuers(id) ON DELETE CASCADE,
+        kind TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'DRAFT',
+        subject TEXT,
+        body TEXT,
+        audience TEXT,
+        channel TEXT,
+        scheduled_at TIMESTAMPTZ,
+        sent_at TIMESTAMPTZ,
+        approved_at TIMESTAMPTZ,
+        cancelled_at TIMESTAMPTZ,
+        document_refs JSONB NOT NULL DEFAULT '[]'::jsonb,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_div_comms_event ON dividend_communications (dividend_event_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_comms_status ON dividend_communications (status);
+    `)
+
+    // Fractional-share adjustments captured per entitlement so the
+    // audit trail explains why a holder received their final amount.
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_fractional_adjustments (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        entitlement_id TEXT NOT NULL REFERENCES dividend_entitlements(id) ON DELETE CASCADE,
+        shareholder_id TEXT NOT NULL REFERENCES shareholders(id) ON DELETE RESTRICT,
+        policy TEXT NOT NULL,
+        fractional_shares NUMERIC(38,8) NOT NULL DEFAULT 0,
+        whole_shares_issued INTEGER NOT NULL DEFAULT 0,
+        adjustment_cents BIGINT NOT NULL DEFAULT 0,
+        reason TEXT,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_div_frac_event ON dividend_fractional_adjustments (dividend_event_id);
+      CREATE INDEX IF NOT EXISTS idx_div_frac_entitlement ON dividend_fractional_adjustments (entitlement_id);
+    `)
+
+    // DRIP execution records — distinct from the long-lived
+    // `dividend_reinvestment_instructions`, which captures the
+    // shareholder's standing election.
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_reinvestment_records (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        entitlement_id TEXT NOT NULL REFERENCES dividend_entitlements(id) ON DELETE CASCADE,
+        shareholder_id TEXT NOT NULL REFERENCES shareholders(id) ON DELETE RESTRICT,
+        account_id TEXT NOT NULL REFERENCES shareholder_accounts(id) ON DELETE RESTRICT,
+        status TEXT NOT NULL DEFAULT 'CALCULATED',
+        reinvested_amount_cents BIGINT NOT NULL DEFAULT 0,
+        purchase_price NUMERIC(28,8) NOT NULL DEFAULT 0,
+        shares_issued NUMERIC(38,8) NOT NULL DEFAULT 0,
+        fractional_share_handling TEXT NOT NULL DEFAULT 'CASH_IN_LIEU',
+        residual_cash_cents BIGINT NOT NULL DEFAULT 0,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (dividend_event_id, entitlement_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_div_drip_records_event ON dividend_reinvestment_records (dividend_event_id);
+      CREATE INDEX IF NOT EXISTS idx_div_drip_records_shareholder ON dividend_reinvestment_records (shareholder_id);
+    `)
+
+    // Typed reconciliation exceptions, with a status loop for the
+    // resolve / waive / re-investigate workflow.
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_reconciliation_exceptions (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        batch_id TEXT REFERENCES dividend_payment_batches(id) ON DELETE SET NULL,
+        payment_id TEXT REFERENCES dividend_payments(id) ON DELETE SET NULL,
+        type TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'OPEN',
+        description TEXT NOT NULL,
+        expected_cents BIGINT,
+        observed_cents BIGINT,
+        resolution TEXT,
+        opened_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        resolved_at TIMESTAMPTZ,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb
+      );
+      CREATE INDEX IF NOT EXISTS idx_div_exceptions_event ON dividend_reconciliation_exceptions (dividend_event_id, opened_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_exceptions_status ON dividend_reconciliation_exceptions (status);
+      CREATE INDEX IF NOT EXISTS idx_div_exceptions_payment ON dividend_reconciliation_exceptions (payment_id);
+    `)
+
+    // AI-assisted preflight reviews. Stored separately from `audit_events`
+    // so we can return the structured output to the UI without
+    // materialising a new audit row each time, and so the deterministic
+    // findings live alongside the AI prose for forensic review.
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS dividend_ai_reviews (
+        id TEXT PRIMARY KEY,
+        dividend_event_id TEXT NOT NULL REFERENCES dividend_events(id) ON DELETE CASCADE,
+        issuer_id TEXT NOT NULL REFERENCES issuers(id) ON DELETE CASCADE,
+        requested_by TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL DEFAULT '',
+        prompt_version TEXT NOT NULL DEFAULT '',
+        dividend_status TEXT NOT NULL,
+        preflight JSONB NOT NULL DEFAULT '{}'::jsonb,
+        output JSONB NOT NULL DEFAULT '{}'::jsonb,
+        provider_error TEXT,
+        generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_div_ai_reviews_event ON dividend_ai_reviews (dividend_event_id, generated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_div_ai_reviews_issuer ON dividend_ai_reviews (issuer_id, generated_at DESC);
     `)
 
     // Meetings, proposals, ballots, votes.

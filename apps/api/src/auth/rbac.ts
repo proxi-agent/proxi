@@ -85,7 +85,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
 }
 
 export function hasPermission(role: Role | readonly Role[], permission: Permission): boolean {
-  const roles = Array.isArray(role) ? role : [role]
+  const roles: readonly Role[] = Array.isArray(role) ? role : [role as Role]
   if (roles.includes('super_admin') || roles.includes('transfer_agent_admin')) {
     return true
   }

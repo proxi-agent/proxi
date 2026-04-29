@@ -57,10 +57,7 @@ export function TransferStepper<Id extends string>({
                   {content}
                 </button>
               ) : (
-                <span
-                  aria-current={current ? 'step' : undefined}
-                  className='wizard-step-inner'
-                >
+                <span aria-current={current ? 'step' : undefined} className='wizard-step-inner'>
                   {content}
                 </span>
               )}

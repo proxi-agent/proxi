@@ -424,6 +424,11 @@ model TransferReview {
 /// Corporate action: a dividend declaration. Entitlements are materialized
 /// from the holdings snapshot on `recordDate` and payments are reconciled on
 /// or after `paymentDate`.
+///
+/// Lifecycle (see `dividends.state.ts`):
+///   DRAFT → PENDING_APPROVAL → APPROVED → ELIGIBILITY_LOCKED → CALCULATED
+///         → PAYMENT_SCHEDULED → PARTIALLY_PAID → PAID
+///   any non-terminal state → CANCELLED
 model DividendEvent {
   id                     String              @id @default(cuid())
   issuerId               String
@@ -433,27 +438,85 @@ model DividendEvent {
   kind                   DividendKind        @default(CASH)
   status                 DividendStatus      @default(DRAFT)
   currency               String              @default("USD")
-  ratePerShareCents      Int
+  /// Legacy field — kept populated for backward compatibility. New rows use
+  /// `rateType` + `rateAmount`.
+  ratePerShareCents      Int                 @default(0)
+  /// Interpretation of `rateAmount`. PER_SHARE multiplies by held shares,
+  /// PERCENTAGE multiplies (par × shares × pct/100), FIXED_AMOUNT splits a
+  /// fixed pool pro-rata across eligible shares.
+  rateType               DividendRateType    @default(PER_SHARE)
+  /// Decimal monetary rate. For PER_SHARE this is dollars/share; for
+  /// PERCENTAGE this is the dividend percentage; for FIXED_AMOUNT this is
+  /// the gross pool size in the dividend's currency.
+  rateAmount             Decimal             @default("0") @db.Decimal(28, 8)
+  /// Default withholding percentage applied at calculation time when the
+  /// shareholder has no jurisdiction-specific override. Stored as a percent
+  /// (e.g. 24.0000 means 24%).
+  withholdingDefaultPct  Decimal             @default("0") @db.Decimal(7, 4)
   declarationDate        DateTime            @db.Date
   recordDate             DateTime            @db.Date
-  exDate                 DateTime?           @db.Date
+  exDividendDate         DateTime?           @db.Date     @map("ex_dividend_date")
   paymentDate            DateTime            @db.Date
   totalDistributionCents BigInt              @default(0)
   description            String?
+  notes                  String?
+  /// Free-form metadata (uploaded files refs, board minutes id, etc.).
+  supportingDocuments    Json                @default("[]")
   metadata               Json                @default("{}")
+  approvedAt             DateTime?
+  eligibilityLockedAt    DateTime?
+  calculatedAt           DateTime?
+  scheduledAt            DateTime?
+  paidAt                 DateTime?
+  cancelledAt            DateTime?
   createdAt              DateTime            @default(now())
   updatedAt              DateTime            @updatedAt
 
-  issuer       Issuer                @relation(fields: [issuerId], references: [id], onDelete: Cascade)
-  security     Security              @relation(fields: [securityId], references: [id], onDelete: Restrict)
-  shareClass   ShareClass?           @relation(fields: [shareClassId], references: [id], onDelete: SetNull)
+  issuer       Issuer                          @relation(fields: [issuerId], references: [id], onDelete: Cascade)
+  security     Security                        @relation(fields: [securityId], references: [id], onDelete: Restrict)
+  shareClass   ShareClass?                     @relation(fields: [shareClassId], references: [id], onDelete: SetNull)
   entitlements DividendEntitlement[]
   payments     DividendPayment[]
+  approvals    DividendApproval[]
+  batches      DividendPaymentBatch[]
+  withholdings DividendTaxWithholding[]
+  statements   DividendStatement[]
+  snapshot     DividendEligibilitySnapshot?
 
   @@index([issuerId, paymentDate])
   @@index([issuerId, status])
+  @@index([securityId, paymentDate])
   @@index([recordDate])
+  @@index([paymentDate])
   @@map("dividend_events")
+}
+
+/// Frozen, point-in-time eligibility roster for a dividend. Stored as a
+/// row per dividend so historical calculations remain reproducible even
+/// when the ledger is later corrected.
+model DividendEligibilitySnapshot {
+  id                  String   @id @default(cuid())
+  dividendEventId     String   @unique
+  issuerId            String
+  securityId          String
+  shareClassId        String?
+  recordDate          DateTime @db.Date
+  capturedAt          DateTime @default(now())
+  lockedAt            DateTime?
+  holderCount         Int      @default(0)
+  totalEligibleShares Decimal  @default("0") @db.Decimal(38, 8)
+  /// Inline JSON record of `{ accountId, shareholderId, sharesHeld }` rows
+  /// captured at lock time. This is the auditable artifact even if
+  /// `dividend_entitlements` is later truncated and rebuilt.
+  snapshotPayload     Json     @default("[]")
+  metadata            Json     @default("{}")
+
+  dividendEvent DividendEvent       @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+  entitlements  DividendEntitlement[]
+
+  @@index([issuerId, recordDate])
+  @@index([securityId, recordDate])
+  @@map("dividend_eligibility_snapshots")
 }
 
 /// Snapshot of an account's entitlement on the record date. This is
@@ -461,53 +524,219 @@ model DividendEvent {
 /// historical dividend runs remain auditable even if later ledger
 /// corrections change current balances.
 model DividendEntitlement {
-  id               String                   @id @default(cuid())
-  dividendEventId  String
-  shareholderId    String
-  accountId        String
-  sharesHeld       BigInt
-  amountCents      BigInt
-  status           DividendEntitlementStatus @default(PENDING)
-  metadata         Json                     @default("{}")
-  createdAt        DateTime                 @default(now())
-  updatedAt        DateTime                 @updatedAt
+  id                     String                    @id @default(cuid())
+  dividendEventId        String
+  eligibilitySnapshotId  String?
+  shareholderId          String
+  accountId              String
+  /// Legacy integer share count. Kept for backward compatibility with
+  /// existing rows. New writes also populate `sharesHeldDecimal`.
+  sharesHeld             BigInt                    @default(0)
+  /// Authoritative share count, supports fractional shares for DRIP.
+  sharesHeldDecimal      Decimal                   @default("0") @db.Decimal(38, 8)
+  /// Legacy gross-cents column. Kept in sync with `grossAmountCents` so
+  /// older queries continue to function.
+  amountCents            BigInt                    @default(0)
+  grossAmountCents       BigInt                    @default(0)
+  withholdingCents       BigInt                    @default(0)
+  netAmountCents         BigInt                    @default(0)
+  withholdingPct         Decimal                   @default("0") @db.Decimal(7, 4)
+  paymentMethod          PaymentMethod?
+  status                 DividendEntitlementStatus @default(PENDING)
+  frozenAt               DateTime?
+  paidAt                 DateTime?
+  paymentReference       String?
+  metadata               Json                      @default("{}")
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
 
-  dividendEvent DividendEvent      @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
-  shareholder   Shareholder        @relation(fields: [shareholderId], references: [id], onDelete: Restrict)
-  account       ShareholderAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  payments      DividendPayment[]
+  dividendEvent       DividendEvent                @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+  shareholder         Shareholder                  @relation(fields: [shareholderId], references: [id], onDelete: Restrict)
+  account             ShareholderAccount           @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  eligibilitySnapshot DividendEligibilitySnapshot? @relation(fields: [eligibilitySnapshotId], references: [id], onDelete: SetNull)
+  payments            DividendPayment[]
+  withholdings        DividendTaxWithholding[]
+  statements          DividendStatement[]
 
   @@unique([dividendEventId, accountId])
   @@index([dividendEventId, status])
+  @@index([shareholderId])
   @@index([accountId])
   @@map("dividend_entitlements")
 }
 
+/// Approval / rejection / revocation decision for a dividend declaration.
+/// Insert-only; revocation is expressed as a new row with `action = REVOKED`.
+model DividendApproval {
+  id              String                 @id @default(cuid())
+  dividendEventId String
+  action          DividendApprovalAction
+  actorId         String
+  actorRole       String?
+  decisionNotes   String?
+  decidedAt       DateTime               @default(now())
+  metadata        Json                   @default("{}")
+  createdAt       DateTime               @default(now())
+
+  dividendEvent DividendEvent @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+
+  @@index([dividendEventId, decidedAt])
+  @@index([actorId])
+  @@map("dividend_approvals")
+}
+
+/// Batched disbursement run. Multiple payment runs (re-tries, partial
+/// batches by region/method) can be associated with the same dividend.
+model DividendPaymentBatch {
+  id                    String                   @id @default(cuid())
+  dividendEventId       String
+  issuerId              String
+  method                PaymentMethod            @default(ACH)
+  status                DividendBatchStatus      @default(DRAFT)
+  scheduledAt           DateTime?
+  startedAt             DateTime?
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  paymentCount          Int                      @default(0)
+  totalGrossCents       BigInt                   @default(0)
+  totalWithholdingCents BigInt                   @default(0)
+  totalNetCents         BigInt                   @default(0)
+  notes                 String?
+  metadata              Json                     @default("{}")
+  createdAt             DateTime                 @default(now())
+  updatedAt             DateTime                 @updatedAt
+
+  dividendEvent DividendEvent     @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+  payments      DividendPayment[]
+
+  @@index([dividendEventId])
+  @@index([issuerId, scheduledAt])
+  @@index([status])
+  @@map("dividend_payment_batches")
+}
+
 /// Disbursement attempt for an entitlement. Modeled separately so retries,
 /// partial payments, and reversals can be recorded without destroying the
-/// entitlement snapshot.
+/// entitlement snapshot. Always linked to its `DividendPaymentBatch` so
+/// reconciliation can run per-batch.
 model DividendPayment {
-  id             String                 @id @default(cuid())
-  entitlementId  String
-  dividendEventId String
-  accountId      String
-  amountCents    BigInt
-  method         PaymentMethod          @default(ACH)
-  status         PaymentStatus          @default(PENDING)
-  externalRef    String?
-  failureReason  String?
-  paidAt         DateTime?
-  metadata       Json                   @default("{}")
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @updatedAt
+  id               String        @id @default(cuid())
+  dividendEventId  String
+  batchId          String?
+  entitlementId    String
+  accountId        String
+  shareholderId    String
+  grossAmountCents BigInt
+  withholdingCents BigInt        @default(0)
+  netAmountCents   BigInt
+  currency         String        @default("USD")
+  /// Legacy column kept in sync with `grossAmountCents`.
+  amountCents      BigInt        @default(0)
+  method           PaymentMethod @default(ACH)
+  status           PaymentStatus @default(PENDING)
+  externalRef      String?
+  failureReason    String?
+  attemptNo        Int           @default(1)
+  paidAt           DateTime?
+  metadata         Json          @default("{}")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
 
-  entitlement   DividendEntitlement @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
-  dividendEvent DividendEvent       @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
-  account       ShareholderAccount  @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  entitlement   DividendEntitlement   @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+  dividendEvent DividendEvent         @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+  account       ShareholderAccount    @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  batch         DividendPaymentBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  withholdings  DividendTaxWithholding[]
 
   @@index([dividendEventId, status])
+  @@index([batchId])
+  @@index([entitlementId])
   @@index([accountId, createdAt])
+  @@index([shareholderId, createdAt])
   @@map("dividend_payments")
+}
+
+/// Tax-withholding ledger row. One row per (entitlement, jurisdiction)
+/// captured at calculation time, with the linked payment populated when
+/// disbursement happens.
+model DividendTaxWithholding {
+  id                 String   @id @default(cuid())
+  dividendEventId    String
+  entitlementId      String
+  paymentId          String?
+  shareholderId      String
+  jurisdiction       String   @default("US")
+  withholdingPct     Decimal  @db.Decimal(7, 4)
+  taxableAmountCents BigInt
+  withholdingCents   BigInt
+  reason             String?
+  metadata           Json     @default("{}")
+  createdAt          DateTime @default(now())
+
+  dividendEvent DividendEvent       @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+  entitlement   DividendEntitlement @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+  payment       DividendPayment?    @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([dividendEventId])
+  @@index([entitlementId])
+  @@index([shareholderId])
+  @@map("dividend_tax_withholdings")
+}
+
+/// Per-shareholder dividend statement (1099-DIV input, holder-portal view).
+/// Generated when entitlements are calculated; status flips to SENT when
+/// the rendered document is delivered.
+model DividendStatement {
+  id                 String                  @id @default(cuid())
+  dividendEventId    String
+  entitlementId      String
+  shareholderId      String
+  accountId          String
+  grossAmountCents   BigInt
+  withholdingCents   BigInt                  @default(0)
+  netAmountCents     BigInt
+  currency           String                  @default("USD")
+  statementDate      DateTime                @db.Date
+  status             DividendStatementStatus @default(DRAFT)
+  documentStorageKey String?
+  sentAt             DateTime?
+  metadata           Json                    @default("{}")
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+
+  dividendEvent DividendEvent       @relation(fields: [dividendEventId], references: [id], onDelete: Cascade)
+  entitlement   DividendEntitlement @relation(fields: [entitlementId], references: [id], onDelete: Cascade)
+
+  @@unique([dividendEventId, entitlementId])
+  @@index([shareholderId, statementDate])
+  @@index([status])
+  @@map("dividend_statements")
+}
+
+/// Standing dividend reinvestment instructions (DRIP). Optional / forward-
+/// looking — not yet enforced by the calculator, but the schema is in place
+/// so the feature can land without a migration.
+model DividendReinvestmentInstruction {
+  id            String   @id @default(cuid())
+  issuerId      String
+  shareholderId String
+  accountId     String
+  securityId    String
+  shareClassId  String?
+  enabled       Boolean  @default(true)
+  /// Percentage of cash entitlement to reinvest (0..100).
+  percentage    Decimal  @default("100") @db.Decimal(5, 2)
+  effectiveFrom DateTime @db.Date
+  effectiveTo   DateTime? @db.Date
+  metadata      Json     @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([accountId, securityId, shareClassId, effectiveFrom])
+  @@index([issuerId])
+  @@index([shareholderId])
+  @@index([securityId])
+  @@map("dividend_reinvestment_instructions")
 }
 
 // ---------------------------------------------------------------------------
@@ -921,23 +1150,68 @@ enum DividendKind {
   STOCK
   SPECIAL
   RETURN_OF_CAPITAL
+  /// Legacy: scrip dividends still appear in seed data.
+  SCRIP
+}
+
+/// Encodes how `DividendEvent.rateAmount` should be interpreted.
+enum DividendRateType {
+  PER_SHARE
+  PERCENTAGE
+  FIXED_AMOUNT
 }
 
 enum DividendStatus {
   DRAFT
-  DECLARED
-  RECORD_DATE_SET
-  PAYABLE
+  PENDING_APPROVAL
+  APPROVED
+  ELIGIBILITY_LOCKED
+  CALCULATED
+  PAYMENT_SCHEDULED
+  PARTIALLY_PAID
   PAID
   CANCELLED
+  /// Legacy waypoints — `DECLARED` ≈ APPROVED, `SNAPSHOTTED` ≈ ELIGIBILITY_LOCKED.
+  /// Kept so existing rows remain valid; the state machine maps them forward.
+  DECLARED
+  SNAPSHOTTED
+  /// Legacy column values still present in some demo rows.
+  RECORD_DATE_SET
+  PAYABLE
 }
 
 enum DividendEntitlementStatus {
   PENDING
+  CALCULATED
   HELD
   PAID
   FAILED
   REVERSED
+  VOIDED
+}
+
+enum DividendApprovalAction {
+  REQUESTED
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+enum DividendBatchStatus {
+  DRAFT
+  SCHEDULED
+  PROCESSING
+  COMPLETED
+  PARTIALLY_FAILED
+  FAILED
+  CANCELLED
+}
+
+enum DividendStatementStatus {
+  DRAFT
+  READY
+  SENT
+  VOIDED
 }
 
 enum PaymentMethod {

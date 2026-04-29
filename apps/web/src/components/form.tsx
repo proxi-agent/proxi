@@ -2,15 +2,7 @@ import { type ReactNode, useId } from 'react'
 
 import { Icon } from '@/components/icon'
 
-export function FormSection({
-  children,
-  subtitle,
-  title,
-}: {
-  children: ReactNode
-  subtitle?: ReactNode
-  title?: ReactNode
-}) {
+export function FormSection({ children, subtitle, title }: { children: ReactNode; subtitle?: ReactNode; title?: ReactNode }) {
   return (
     <div className='form-section'>
       {(title || subtitle) && (
@@ -44,11 +36,7 @@ export function FormField({
   label,
   required,
 }: {
-  children: (fieldProps: {
-    'aria-describedby': string | undefined
-    'aria-invalid': boolean | undefined
-    id: string
-  }) => ReactNode
+  children: (fieldProps: { 'aria-describedby': string | undefined; 'aria-invalid': boolean | undefined; id: string }) => ReactNode
   error?: ReactNode
   help?: ReactNode
   label: ReactNode

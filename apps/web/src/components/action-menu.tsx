@@ -59,14 +59,15 @@ export function ActionMenu({
         {trigger ?? <Icon name='more' size={14} />}
       </button>
       {open && (
-        <div
-          className='action-menu-panel'
-          role='menu'
-          style={align === 'start' ? { left: 0, right: 'auto' } : undefined}
-        >
+        <div className='action-menu-panel' role='menu' style={align === 'start' ? { left: 0, right: 'auto' } : undefined}>
           {items.map((item, idx) => {
             if (item.kind === 'divider') return <div aria-hidden className='action-menu-divider' key={`d-${idx}`} />
-            if (item.kind === 'label') return <div className='action-menu-label' key={`l-${idx}`}>{item.label}</div>
+            if (item.kind === 'label')
+              return (
+                <div className='action-menu-label' key={`l-${idx}`}>
+                  {item.label}
+                </div>
+              )
             return (
               <button
                 className={`action-menu-item ${item.danger ? 'danger' : ''}`}

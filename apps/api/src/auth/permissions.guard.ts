@@ -165,6 +165,10 @@ export class PermissionsGuard implements CanActivate {
         sql: `SELECT issuer_id FROM dividend_events WHERE id = $1`,
         values: [id],
       },
+      dividend_batch: {
+        sql: `SELECT issuer_id FROM dividend_payment_batches WHERE id = $1`,
+        values: [id],
+      },
       meeting: {
         sql: `SELECT issuer_id FROM meetings WHERE id = $1`,
         values: [id],

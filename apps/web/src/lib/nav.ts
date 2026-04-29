@@ -232,7 +232,6 @@ export const PORTALS: Record<PortalId, PortalConfig> = {
       {
         items: [
           {
-            badge: 'Run',
             href: '/issuer/dividends',
             icon: 'coins',
             label: 'Dividends',

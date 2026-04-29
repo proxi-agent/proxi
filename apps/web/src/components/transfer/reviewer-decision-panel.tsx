@@ -169,9 +169,7 @@ export function ReviewerDecisionPanel({
           </div>
         )}
 
-        {approveDisabled && (
-          <Callout tone='danger'>Cannot post while blocking exceptions remain open. Resolve or escalate first.</Callout>
-        )}
+        {approveDisabled && <Callout tone='danger'>Cannot post while blocking exceptions remain open. Resolve or escalate first.</Callout>}
 
         <div className='flex gap-2'>
           <button

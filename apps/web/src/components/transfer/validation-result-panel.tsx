@@ -61,13 +61,12 @@ export function ValidationResultPanel({
       : 'Automated checks against regulatory rules, medallion, KYC/OFAC, and ledger availability.')
 
   return (
-    <Panel
-      actions={actions}
-      subtitle={effectiveSubtitle}
-      title={title}
-    >
+    <Panel actions={actions} subtitle={effectiveSubtitle} title={title}>
       <div className='validation-header'>
-        <Badge icon={loading ? 'refresh' : STATUS_META[blocked.length ? 'blocked' : review.length ? 'review' : 'passed'].icon} tone={summaryTone}>
+        <Badge
+          icon={loading ? 'refresh' : STATUS_META[blocked.length ? 'blocked' : review.length ? 'review' : 'passed'].icon}
+          tone={summaryTone}
+        >
           {loading ? 'Running…' : summaryLabel}
         </Badge>
         <div className='validation-header-counts'>

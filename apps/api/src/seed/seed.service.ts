@@ -253,26 +253,68 @@ export class SeedService {
         currency: 'USD',
         declarationDate: dateDaysAgo(7),
         description: 'Quarterly cash dividend (seed)',
+        exDividendDate: dateDaysAgo(4),
         issuerId: issuer.id,
         kind: 'CASH',
         metadata: { seed: 'proxi-demo' },
+        notes: 'Demonstrates the full lifecycle: submit → approve → lock → calculate → pay.',
         paymentDate: dateDaysFromNow(7),
-        ratePerShareCents: 25,
+        rateAmount: '0.25',
+        rateType: 'PER_SHARE',
         recordDate,
         securityId: security.id,
         shareClassId: security.shareClasses.find(cls => cls.code === 'A')?.id,
+        supportingDocuments: [
+          {
+            contentType: 'application/pdf',
+            description: 'Board resolution authorising the Q2 cash dividend',
+            fileName: 'Board Resolution.pdf',
+            storageKey: 'seed/board-resolution.pdf',
+          },
+        ],
+        withholdingDefaultPct: '15',
       },
       SYSTEM_ACTOR,
     )
-    await this.dividendsService.declare(dividend.id, SYSTEM_ACTOR)
-    const snapshot = await this.dividendsService.snapshot(dividend.id, SYSTEM_ACTOR)
-    for (const entitlement of snapshot.entitlements.slice(0, 2)) {
-      await this.dividendsService.markEntitlementPaid(
+
+    // Walk the canonical lifecycle so the demo data exposes every state.
+    await this.dividendsService.submitForApproval(dividend.id, { decisionNotes: 'Submitted by seed' }, SYSTEM_ACTOR)
+    await this.dividendsService.approve(dividend.id, { decisionNotes: 'Approved by seed treasurer' }, SYSTEM_ACTOR)
+    await this.dividendsService.lockEligibility(dividend.id, SYSTEM_ACTOR)
+    const calculated = await this.dividendsService.calculateEntitlements(dividend.id, { withholdingOverrides: {} }, SYSTEM_ACTOR)
+    const targetEntitlements = calculated.entitlements.slice(0, 2)
+    if (targetEntitlements.length) {
+      const { batch, payments } = await this.dividendsService.createPaymentBatch(
+        dividend.id,
         {
-          entitlementId: entitlement.id,
-          metadata: { channel: 'ACH', seed: 'proxi-demo' },
-          paymentReference: `ACH-${entitlement.id.slice(-6).toUpperCase()}`,
+          entitlementIds: targetEntitlements.map(entitlement => entitlement.id),
+          method: 'ACH',
+          notes: 'First-wave ACH payments (seed)',
         },
+        SYSTEM_ACTOR,
+      )
+      await this.dividendsService.submitBatch(batch.id, {}, SYSTEM_ACTOR)
+      await this.dividendsService.approveBatch(batch.id, {}, SYSTEM_ACTOR)
+      await this.dividendsService.scheduleBatch(
+        batch.id,
+        { force: true, reason: 'Seed environment — bypass payment-method warnings' },
+        SYSTEM_ACTOR,
+      )
+      await this.dividendsService.markBatchProcessing(batch.id, {}, SYSTEM_ACTOR)
+      for (const payment of payments) {
+        await this.dividendsService.recordPayment(
+          {
+            externalRef: `ACH-${payment.id.slice(-6).toUpperCase()}`,
+            idempotencyKey: `seed-${payment.id}`,
+            paymentId: payment.id,
+            status: 'PAID',
+          },
+          SYSTEM_ACTOR,
+        )
+      }
+      await this.dividendsService.generateStatements(
+        dividend.id,
+        { entitlementIds: targetEntitlements.map(entitlement => entitlement.id) },
         SYSTEM_ACTOR,
       )
     }

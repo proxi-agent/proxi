@@ -68,12 +68,7 @@ function NavSidebar({ portal }: { portal: PortalId }) {
           const href = p === 'investor' ? '/investor' : `/${p}`
           const active = portal === p
           return (
-            <Link
-              aria-current={active ? 'true' : undefined}
-              className={`portal-switch-item ${active ? 'active' : ''}`}
-              href={href}
-              key={p}
-            >
+            <Link aria-current={active ? 'true' : undefined} className={`portal-switch-item ${active ? 'active' : ''}`} href={href} key={p}>
               <span aria-hidden className={`portal-dot ${p}`} />
               <span>{PORTAL_META[p].name}</span>
             </Link>

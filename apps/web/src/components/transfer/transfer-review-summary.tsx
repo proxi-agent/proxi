@@ -46,11 +46,7 @@ export function TransferReviewSummary({
 
       <div className='flex flex-col gap-4'>
         {sections.map(section => (
-          <section
-            aria-labelledby={`review-${slug(section.title)}`}
-            className='review-section'
-            key={section.title}
-          >
+          <section aria-labelledby={`review-${slug(section.title)}`} className='review-section' key={section.title}>
             <header className='review-section-header'>
               <div className='flex items-center gap-2'>
                 {section.icon && (
@@ -63,12 +59,7 @@ export function TransferReviewSummary({
                 </h3>
               </div>
               {section.onEdit && (
-                <button
-                  aria-label={`Edit ${section.title}`}
-                  className='btn btn-ghost btn-sm'
-                  onClick={section.onEdit}
-                  type='button'
-                >
+                <button aria-label={`Edit ${section.title}`} className='btn btn-ghost btn-sm' onClick={section.onEdit} type='button'>
                   <Icon aria-hidden name='pencil' size={12} />
                   Edit
                 </button>
@@ -105,18 +96,13 @@ export function TransferReviewSummary({
  * Lightweight helper to render a validation status chip strip inside
  * `TransferReviewSummary`'s `validationSummary` slot.
  */
-export function ReviewValidationSummary({
-  blocked,
-  passed,
-  review,
-}: {
-  blocked: number
-  passed: number
-  review: number
-}) {
+export function ReviewValidationSummary({ blocked, passed, review }: { blocked: number; passed: number; review: number }) {
   return (
     <div className='flex flex-wrap items-center gap-1.5'>
-      <Badge icon={blocked ? 'alert-triangle' : review ? 'alert-triangle' : 'check-circle'} tone={blocked ? 'danger' : review ? 'warning' : 'positive'}>
+      <Badge
+        icon={blocked ? 'alert-triangle' : review ? 'alert-triangle' : 'check-circle'}
+        tone={blocked ? 'danger' : review ? 'warning' : 'positive'}
+      >
         {blocked ? `${blocked} blocker${blocked === 1 ? '' : 's'}` : review ? `${review} to review` : 'Ready to submit'}
       </Badge>
       {passed > 0 && <Badge tone='positive'>{passed} passed</Badge>}

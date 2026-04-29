@@ -7,7 +7,7 @@ export interface ScopeEntityRule {
    * Logical entity kind; guard maps this to table lookups for issuer/account
    * ownership checks.
    */
-  entity: 'account' | 'ballot' | 'dividend' | 'meeting' | 'shareholder' | 'task' | 'transfer'
+  entity: 'account' | 'ballot' | 'dividend' | 'dividend_batch' | 'meeting' | 'shareholder' | 'task' | 'transfer'
   /** Request param that carries the entity id (default: "id"). */
   idParam?: string
 }
