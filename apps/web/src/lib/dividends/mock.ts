@@ -281,7 +281,7 @@ const Q4_2025_AUDIT: DividendAuditEvent[] = [
   {
     action: 'DIVIDEND_DRAFTED',
     actor: 'Krishna Ajmeri',
-    actorRole: 'Issuer · Corporate Secretary',
+    actorRole: 'Issuer · CTO',
     at: '2026-01-10T15:30:00Z',
     detail: 'Draft created from prior quarter template',
     id: 'au-1',

@@ -4,10 +4,10 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { Icon } from '@/components/icon'
+import { withApiAuthHeaders } from '@/lib/api/auth-headers'
+import { apiUrl } from '@/lib/api/base-url'
 import { ACTION_ICON, ACTION_LABEL } from '@/lib/dividends/copy'
 import type { DividendAction } from '@/lib/dividends/types'
-
-const API_BASE = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : undefined
 
 const PRIMARY_ACTIONS: DividendAction[] = ['approve', 'submit', 'lockEligibility', 'calculate', 'archive']
 
@@ -105,7 +105,8 @@ export function DividendWorkflowActions({
     setPending(action)
     setError(null)
     try {
-      if (!API_BASE) {
+      const url = apiUrl(`/dividends/${encodeURIComponent(dividendId)}/${descriptor.path}`)
+      if (!url) {
         // Local mock-only mode: surface a friendly message instead of silently no-op'ing.
         window.alert(
           `Mock mode: would POST /dividends/${dividendId}/${descriptor.path}\n\nSet NEXT_PUBLIC_API_URL to wire this to a live backend.`,
@@ -113,11 +114,11 @@ export function DividendWorkflowActions({
         setPending(null)
         return
       }
-      const res = await fetch(`${API_BASE}/dividends/${encodeURIComponent(dividendId)}/${descriptor.path}`, {
+      const res = await fetch(url, {
         body: JSON.stringify(body),
         cache: 'no-store',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: withApiAuthHeaders({ 'content-type': 'application/json' }),
         method: 'POST',
       })
       if (!res.ok) {

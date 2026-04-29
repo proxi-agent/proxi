@@ -5,9 +5,9 @@ import { useState } from 'react'
 
 import { Callout } from '@/components/callout'
 import { DividendForm, type DividendFormValues } from '@/components/dividends'
+import { withApiAuthHeaders } from '@/lib/api/auth-headers'
+import { apiUrl } from '@/lib/api/base-url'
 import type { DividendEvent } from '@/lib/dividends/types'
-
-const API_BASE = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : undefined
 
 export function EditDividendForm({ dividend }: { dividend: DividendEvent }) {
   const router = useRouter()
@@ -18,7 +18,8 @@ export function EditDividendForm({ dividend }: { dividend: DividendEvent }) {
     setError(null)
     setSubmitting(true)
     try {
-      if (!API_BASE) {
+      const updateUrl = apiUrl(`/dividends/${encodeURIComponent(dividend.id)}`)
+      if (!updateUrl) {
         if (typeof window !== 'undefined') {
           const verb = intent === 'submit' ? 'Submitted for approval' : 'Saved draft changes'
           window.alert(`Mock mode — ${verb}: v${dividend.version} · ${values.dividendType} · ${values.rateAmount}`)
@@ -27,7 +28,7 @@ export function EditDividendForm({ dividend }: { dividend: DividendEvent }) {
         return
       }
 
-      const updateRes = await fetch(`${API_BASE}/dividends/${encodeURIComponent(dividend.id)}`, {
+      const updateRes = await fetch(updateUrl, {
         body: JSON.stringify({
           currency: values.currency,
           declarationDate: values.declarationDate,
@@ -42,7 +43,7 @@ export function EditDividendForm({ dividend }: { dividend: DividendEvent }) {
         }),
         cache: 'no-store',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: withApiAuthHeaders({ 'content-type': 'application/json' }),
         method: 'PUT',
       })
       if (!updateRes.ok) {
@@ -60,11 +61,16 @@ export function EditDividendForm({ dividend }: { dividend: DividendEvent }) {
       }
 
       if (intent === 'submit') {
-        const submitRes = await fetch(`${API_BASE}/dividends/${encodeURIComponent(dividend.id)}/submit`, {
+        const submitUrl = apiUrl(`/dividends/${encodeURIComponent(dividend.id)}/submit`)
+        if (!submitUrl) {
+          setError('Update saved, but submission for approval failed.')
+          return
+        }
+        const submitRes = await fetch(submitUrl, {
           body: JSON.stringify({}),
           cache: 'no-store',
           credentials: 'include',
-          headers: { 'content-type': 'application/json' },
+          headers: withApiAuthHeaders({ 'content-type': 'application/json' }),
           method: 'POST',
         })
         if (!submitRes.ok) {

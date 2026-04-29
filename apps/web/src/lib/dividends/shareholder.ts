@@ -7,6 +7,9 @@
  * otherwise the local fixtures keep the prototype self-contained.
  */
 
+import { withApiAuthHeaders } from '../api/auth-headers'
+import { API_BASE, apiUrl } from '../api/base-url'
+
 import { ENTITLEMENT_STATUS_LABEL, ENTITLEMENT_STATUS_TONE, formatCents, formatDate } from './copy'
 import type { DividendType, EntitlementPaymentStatus, PaymentStatus, TaxFormStatus, WithholdingReason } from './types'
 
@@ -389,12 +392,16 @@ export function describeStatus(status: PaymentStatus): { description: string; re
   }
 }
 
-const API_BASE = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : undefined
-
 async function tryFetch<T>(path: string, fallback: () => T): Promise<T> {
   if (!API_BASE) return fallback()
   try {
-    const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store', credentials: 'include' })
+    const url = apiUrl(path)
+    if (!url) return fallback()
+    const res = await fetch(url, {
+      cache: 'no-store',
+      credentials: 'include',
+      headers: withApiAuthHeaders(),
+    })
     if (!res.ok) return fallback()
     return (await res.json()) as T
   } catch {

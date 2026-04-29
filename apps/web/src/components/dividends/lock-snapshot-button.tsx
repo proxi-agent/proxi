@@ -4,8 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { Icon } from '@/components/icon'
-
-const API_BASE = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : undefined
+import { withApiAuthHeaders } from '@/lib/api/auth-headers'
+import { apiUrl } from '@/lib/api/base-url'
 
 /**
  * Locks the eligibility snapshot for a dividend.
@@ -25,13 +25,15 @@ export function LockSnapshotButton({ dividendId }: { dividendId: string }) {
     setPending(true)
     setError(null)
     try {
-      if (!API_BASE) {
+      const url = apiUrl(`/dividends/${encodeURIComponent(dividendId)}/lock-eligibility`)
+      if (!url) {
         window.alert(`Mock mode: would POST /dividends/${dividendId}/lock-eligibility`)
         return
       }
-      const res = await fetch(`${API_BASE}/dividends/${encodeURIComponent(dividendId)}/lock-eligibility`, {
+      const res = await fetch(url, {
         cache: 'no-store',
         credentials: 'include',
+        headers: withApiAuthHeaders(),
         method: 'POST',
       })
       if (!res.ok) {

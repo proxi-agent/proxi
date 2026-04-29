@@ -7,6 +7,9 @@
  * isolation. Either way, callers receive the same typed contracts.
  */
 
+import { withApiAuthHeaders } from '../api/auth-headers'
+import { API_BASE, apiUrl } from '../api/base-url'
+
 import {
   getBatch as mockBatch,
   getDashboard as mockDashboard,
@@ -23,18 +26,20 @@ import type {
   DividendDashboardData,
   DividendEvent,
   DividendEventDetail,
+  DividendFormIssuerOption,
+  DividendFormSecurityOption,
   EligibilitySnapshot,
   Entitlement,
   PaymentBatch,
   PaymentBatchDetail,
 } from './types'
 
-const API_BASE = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : undefined
-
 async function tryFetch<T>(path: string, fallback: () => T): Promise<T> {
   if (!API_BASE) return fallback()
   try {
-    const res = await fetch(`${API_BASE}${path}`, { cache: 'no-store' })
+    const url = apiUrl(path)
+    if (!url) return fallback()
+    const res = await fetch(url, { cache: 'no-store', credentials: 'include', headers: withApiAuthHeaders() })
     if (!res.ok) return fallback()
     return (await res.json()) as T
   } catch {
@@ -134,9 +139,12 @@ export interface DividendAiReview {
  * so the UI can treat this as a non-failing button.
  */
 export async function runAiReview(dividendId: string): Promise<DividendAiReview | null> {
-  if (!API_BASE) return null
-  const res = await fetch(`${API_BASE}/dividends/${encodeURIComponent(dividendId)}/ai-review`, {
+  const url = apiUrl(`/dividends/${encodeURIComponent(dividendId)}/ai-review`)
+  if (!url) return null
+  const res = await fetch(url, {
     cache: 'no-store',
+    credentials: 'include',
+    headers: withApiAuthHeaders(),
     method: 'POST',
   })
   if (!res.ok) return null
@@ -186,6 +194,100 @@ export async function fetchReportsSummary(
       unpaidAmountCents: dashboard.totalPayableCents,
     }
   })
+}
+
+type IssuersListResponse = {
+  items?: Array<{
+    id: string
+    name: string
+    legalName?: string
+    metadata?: Record<string, unknown>
+  }>
+}
+
+type SecuritiesListResponse = {
+  items?: Array<{
+    id: string
+    issuerId: string
+    ticker?: string
+    name: string
+    shareClasses?: Array<{
+      name: string
+    }>
+  }>
+}
+
+function buildMockIssuerOptions(): DividendFormIssuerOption[] {
+  const byIssuer = new Map<string, DividendFormIssuerOption>()
+  for (const d of mockListDividends({})) {
+    if (!byIssuer.has(d.issuer.id)) {
+      const ticker = d.issuer.ticker ? ` (${d.issuer.ticker})` : ''
+      byIssuer.set(d.issuer.id, { id: d.issuer.id, label: `${d.issuer.name}${ticker}` })
+    }
+  }
+  return [...byIssuer.values()].sort((a, b) => a.label.localeCompare(b.label))
+}
+
+function buildMockSecurityOptions(): DividendFormSecurityOption[] {
+  const bySecurity = new Map<string, DividendFormSecurityOption>()
+  for (const d of mockListDividends({})) {
+    if (!bySecurity.has(d.security.id)) {
+      bySecurity.set(d.security.id, {
+        id: d.security.id,
+        issuerId: d.issuer.id,
+        label: d.security.classLabel ? `${d.security.label} — ${d.security.classLabel}` : d.security.label,
+      })
+    }
+  }
+  return [...bySecurity.values()].sort((a, b) => a.label.localeCompare(b.label))
+}
+
+export async function fetchIssuerOptions(): Promise<DividendFormIssuerOption[]> {
+  if (!API_BASE) return buildMockIssuerOptions()
+  const url = apiUrl('/issuers?pageSize=200&sortBy=name&sortDir=asc')
+  if (!url) return []
+  try {
+    const res = await fetch(url, { cache: 'no-store', credentials: 'include', headers: withApiAuthHeaders() })
+    if (!res.ok) return []
+    const data = (await res.json()) as IssuersListResponse
+    const items = data.items ?? []
+    if (!items.length) return []
+    return items
+      .map(issuer => {
+        const ticker = typeof issuer.metadata?.ticker === 'string' ? issuer.metadata.ticker : undefined
+        const tickerSuffix = ticker ? ` (${ticker})` : ''
+        return { id: issuer.id, label: `${issuer.name}${tickerSuffix}` }
+      })
+      .sort((a, b) => a.label.localeCompare(b.label))
+  } catch {
+    return []
+  }
+}
+
+export async function fetchSecurityOptions(): Promise<DividendFormSecurityOption[]> {
+  if (!API_BASE) return buildMockSecurityOptions()
+  const url = apiUrl('/securities?pageSize=500&sortBy=name&sortDir=asc')
+  if (!url) return []
+  try {
+    const res = await fetch(url, { cache: 'no-store', credentials: 'include', headers: withApiAuthHeaders() })
+    if (!res.ok) return []
+    const data = (await res.json()) as SecuritiesListResponse
+    const items = data.items ?? []
+    if (!items.length) return []
+    return items
+      .map(security => {
+        const classLabel = security.shareClasses?.[0]?.name
+        const tickerPrefix = security.ticker ? `${security.ticker} — ` : ''
+        return {
+          id: security.id,
+          issuerId: security.issuerId,
+          label: classLabel ? `${tickerPrefix}${security.name} (${classLabel})` : `${tickerPrefix}${security.name}`,
+        }
+      })
+      .sort((a, b) => a.label.localeCompare(b.label))
+  } catch {
+    return []
+  }
 }
 
 /**
@@ -305,6 +407,6 @@ export function triggerDownload(location: DividendExportLocation): void {
  * client-side render step.
  */
 export function statementUrl(dividendId: string, entitlementId: string): string {
-  const base = API_BASE ?? ''
-  return `${base}/dividends/${encodeURIComponent(dividendId)}/statements/${encodeURIComponent(entitlementId)}/render`
+  const url = apiUrl(`/dividends/${encodeURIComponent(dividendId)}/statements/${encodeURIComponent(entitlementId)}/render`)
+  return url ?? `/dividends/${encodeURIComponent(dividendId)}/statements/${encodeURIComponent(entitlementId)}/render`
 }

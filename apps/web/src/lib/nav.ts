@@ -211,7 +211,7 @@ export const PORTALS: Record<PortalId, PortalConfig> = {
     company: 'Meridian Optics, Inc.',
     id: 'issuer',
     name: 'Issuer Portal',
-    role: 'Corporate secretary',
+    role: 'CTO',
     sections: [
       {
         items: [

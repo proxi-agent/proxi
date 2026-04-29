@@ -4,9 +4,9 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
 import { Icon } from '@/components/icon'
+import { withApiAuthHeaders } from '@/lib/api/auth-headers'
+import { apiUrl } from '@/lib/api/base-url'
 import type { PaymentBatchStatus } from '@/lib/dividends/types'
-
-const API_BASE = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : undefined
 
 type BatchActionKey = 'approve' | 'cancel' | 'processing' | 'reconcile' | 'reject' | 'schedule' | 'submit'
 
@@ -73,15 +73,16 @@ export function PaymentBatchActions({ batchId, status }: { batchId: string; stat
     setPending(key)
     setError(null)
     try {
-      if (!API_BASE) {
+      const url = apiUrl(`/dividends/batches/${encodeURIComponent(batchId)}/${descriptor.path}`)
+      if (!url) {
         window.alert(`Mock mode: would POST /dividends/batches/${batchId}/${descriptor.path}`)
         return
       }
-      const res = await fetch(`${API_BASE}/dividends/batches/${encodeURIComponent(batchId)}/${descriptor.path}`, {
+      const res = await fetch(url, {
         body: JSON.stringify(body),
         cache: 'no-store',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: withApiAuthHeaders({ 'content-type': 'application/json' }),
         method: 'POST',
       })
       if (!res.ok) {

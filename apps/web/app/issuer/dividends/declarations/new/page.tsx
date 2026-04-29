@@ -8,8 +8,8 @@ import { Callout } from '@/components/callout'
 import { DividendForm, type DividendFormValues } from '@/components/dividends'
 import { Icon } from '@/components/icon'
 import { Badge, PageHeader, Panel } from '@/components/ui'
-
-const API_BASE = typeof process !== 'undefined' ? process.env.NEXT_PUBLIC_API_URL : undefined
+import { withApiAuthHeaders } from '@/lib/api/auth-headers'
+import { apiUrl } from '@/lib/api/base-url'
 
 export default function NewDividendDeclarationPage() {
   const router = useRouter()
@@ -20,7 +20,8 @@ export default function NewDividendDeclarationPage() {
     setError(null)
     setSubmitting(true)
     try {
-      if (!API_BASE) {
+      const createUrl = apiUrl('/dividends')
+      if (!createUrl) {
         const verb = intent === 'submit' ? 'Submitted for approval' : 'Saved as draft'
         if (typeof window !== 'undefined') {
           window.alert(
@@ -31,7 +32,7 @@ export default function NewDividendDeclarationPage() {
         return
       }
 
-      const createRes = await fetch(`${API_BASE}/dividends`, {
+      const createRes = await fetch(createUrl, {
         body: JSON.stringify({
           currency: values.currency,
           declarationDate: values.declarationDate,
@@ -47,7 +48,7 @@ export default function NewDividendDeclarationPage() {
         }),
         cache: 'no-store',
         credentials: 'include',
-        headers: { 'content-type': 'application/json' },
+        headers: withApiAuthHeaders({ 'content-type': 'application/json' }),
         method: 'POST',
       })
       if (!createRes.ok) {
@@ -66,11 +67,17 @@ export default function NewDividendDeclarationPage() {
       const created = (await createRes.json()) as { id: string }
 
       if (intent === 'submit') {
-        const submitRes = await fetch(`${API_BASE}/dividends/${encodeURIComponent(created.id)}/submit`, {
+        const submitUrl = apiUrl(`/dividends/${encodeURIComponent(created.id)}/submit`)
+        if (!submitUrl) {
+          setError(`Created ${created.id} but submission for approval failed.`)
+          router.push(`/issuer/dividends/declarations/${created.id}`)
+          return
+        }
+        const submitRes = await fetch(submitUrl, {
           body: JSON.stringify({}),
           cache: 'no-store',
           credentials: 'include',
-          headers: { 'content-type': 'application/json' },
+          headers: withApiAuthHeaders({ 'content-type': 'application/json' }),
           method: 'POST',
         })
         if (!submitRes.ok) {

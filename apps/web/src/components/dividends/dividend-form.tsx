@@ -1,13 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { FormField, FormSection } from '@/components/form'
 import { Icon } from '@/components/icon'
 import { InfoTooltip } from '@/components/info-tooltip'
 import { Badge } from '@/components/ui'
+import { API_BASE } from '@/lib/api/base-url'
+import { fetchIssuerOptions, fetchSecurityOptions } from '@/lib/dividends/api'
 import { DIVIDEND_TYPE_OPTIONS, RATE_TYPE_OPTIONS, TOOLTIPS } from '@/lib/dividends/copy'
-import type { DividendEvent, DividendRateType, DividendType } from '@/lib/dividends/types'
+import type { DividendEvent, DividendFormIssuerOption, DividendRateType, DividendType } from '@/lib/dividends/types'
 
 export type DividendFormValues = {
   currency: string
@@ -24,13 +26,13 @@ export type DividendFormValues = {
   supportingDoc: string
 }
 
-const ISSUER_OPTIONS = [
-  { id: 'iss_meridian', label: 'Meridian Optics, Inc. (MRDN)' },
+const FALLBACK_ISSUER_OPTIONS: DividendFormIssuerOption[] = [
   { id: 'iss_halcyon', label: 'Halcyon Industrial Co. (HALC)' },
+  { id: 'iss_meridian', label: 'Meridian Optics, Inc. (MRDN)' },
   { id: 'iss_ridgefield', label: 'Ridgefield Energy Holdings (RDG)' },
 ]
 
-const SECURITY_OPTIONS_BY_ISSUER: Record<string, Array<{ id: string; label: string }>> = {
+const FALLBACK_SECURITY_OPTIONS_BY_ISSUER: Record<string, Array<{ id: string; label: string }>> = {
   iss_halcyon: [{ id: 'sec_halcyon_common', label: 'HALC — Common stock' }],
   iss_meridian: [
     { id: 'sec_meridian_common', label: 'MRDN — Common stock' },
@@ -95,9 +97,51 @@ export function DividendForm({
 }) {
   const [values, setValues] = useState<DividendFormValues>(defaultsFromDividend(dividend))
   const [touched, setTouched] = useState<Partial<Record<keyof DividendFormValues, boolean>>>({})
+  const [issuerOptions, setIssuerOptions] = useState<DividendFormIssuerOption[]>(FALLBACK_ISSUER_OPTIONS)
+  const [securityOptionsByIssuer, setSecurityOptionsByIssuer] = useState<Record<string, Array<{ id: string; label: string }>>>(FALLBACK_SECURITY_OPTIONS_BY_ISSUER)
 
   const errors = useMemo(() => validate(values), [values])
-  const securityOptions = SECURITY_OPTIONS_BY_ISSUER[values.issuerId] ?? []
+  const securityOptions = securityOptionsByIssuer[values.issuerId] ?? []
+
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const [issuers, securities] = await Promise.all([fetchIssuerOptions(), fetchSecurityOptions()])
+      if (!alive) return
+
+      const nextIssuerOptions = issuers.length > 0 ? issuers : API_BASE ? [] : FALLBACK_ISSUER_OPTIONS
+      const grouped: Record<string, Array<{ id: string; label: string }>> = {}
+      for (const security of securities) {
+        if (!grouped[security.issuerId]) grouped[security.issuerId] = []
+        grouped[security.issuerId].push({ id: security.id, label: security.label })
+      }
+      for (const issuerId of Object.keys(grouped)) {
+        grouped[issuerId] = grouped[issuerId].sort((a, b) => a.label.localeCompare(b.label))
+      }
+      const nextSecurityOptionsByIssuer = Object.keys(grouped).length > 0 ? grouped : API_BASE ? {} : FALLBACK_SECURITY_OPTIONS_BY_ISSUER
+
+      setIssuerOptions(nextIssuerOptions)
+      setSecurityOptionsByIssuer(nextSecurityOptionsByIssuer)
+      setValues(prev => {
+        let issuerId = prev.issuerId
+        if (!nextIssuerOptions.some(option => option.id === issuerId)) {
+          issuerId = nextIssuerOptions[0]?.id ?? ''
+        }
+        const issuerSecurityOptions = nextSecurityOptionsByIssuer[issuerId] ?? []
+        let securityId = prev.securityId
+        if (!issuerSecurityOptions.some(option => option.id === securityId)) {
+          securityId = issuerSecurityOptions[0]?.id ?? ''
+        }
+        if (issuerId === prev.issuerId && securityId === prev.securityId) {
+          return prev
+        }
+        return { ...prev, issuerId, securityId }
+      })
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
 
   const set = <K extends keyof DividendFormValues>(key: K, value: DividendFormValues[K]) => {
     setValues(v => ({ ...v, [key]: value }))
@@ -128,14 +172,16 @@ export function DividendForm({
             <select
               {...p}
               className='input'
+              disabled={issuerOptions.length === 0}
               onChange={e => {
                 set('issuerId', e.target.value)
-                const next = SECURITY_OPTIONS_BY_ISSUER[e.target.value]?.[0]
-                if (next) set('securityId', next.id)
+                const next = securityOptionsByIssuer[e.target.value]?.[0]
+                set('securityId', next?.id ?? '')
               }}
               value={values.issuerId}
             >
-              {ISSUER_OPTIONS.map(o => (
+              {issuerOptions.length === 0 && <option value=''>No issuers available</option>}
+              {issuerOptions.map(o => (
                 <option key={o.id} value={o.id}>
                   {o.label}
                 </option>
@@ -145,7 +191,14 @@ export function DividendForm({
         </FormField>
         <FormField error={showError('securityId')} label='Security / class' required>
           {p => (
-            <select {...p} className='input' onChange={e => set('securityId', e.target.value)} value={values.securityId}>
+            <select
+              {...p}
+              className='input'
+              disabled={securityOptions.length === 0}
+              onChange={e => set('securityId', e.target.value)}
+              value={values.securityId}
+            >
+              {securityOptions.length === 0 && <option value=''>No securities available for this issuer</option>}
               {securityOptions.map(o => (
                 <option key={o.id} value={o.id}>
                   {o.label}

@@ -256,6 +256,17 @@ export type DividendDashboardData = {
   upcomingPayments: DividendEvent[]
 }
 
+export type DividendFormIssuerOption = {
+  id: string
+  label: string
+}
+
+export type DividendFormSecurityOption = {
+  id: string
+  issuerId: string
+  label: string
+}
+
 export type DeclarationsFilter = {
   dividendType?: DividendType
   endDate?: string
