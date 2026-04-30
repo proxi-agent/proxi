@@ -255,7 +255,8 @@ export class LedgerService {
    * Used by dividends and voting eligibility.
    */
   async getPositionsAsOf(securityId: string, recordDateIso: string): Promise<Position[]> {
-    const cutoff = `${recordDateIso}T23:59:59.999Z`
+    const recordDate = normalizeRecordDate(recordDateIso)
+    const cutoff = `${recordDate}T23:59:59.999Z`
     const result = await this.database.query<{ holder_id: string; quantity: string }>(
       `WITH base AS (
          SELECT * FROM ledger_events WHERE security_id = $1 AND timestamp <= $2
@@ -321,6 +322,18 @@ export class LedgerService {
       client,
     )
   }
+}
+
+function normalizeRecordDate(input: string): string {
+  const trimmed = input.trim()
+  const ymd = /^\d{4}-\d{2}-\d{2}$/
+  if (ymd.test(trimmed)) return trimmed
+
+  const parsed = new Date(trimmed)
+  if (Number.isNaN(parsed.getTime())) {
+    throw new BadRequestException(`Invalid recordDate "${input}"`)
+  }
+  return parsed.toISOString().slice(0, 10)
 }
 
 function mapLedgerEvent(row: LedgerEventRow): LedgerEvent {
